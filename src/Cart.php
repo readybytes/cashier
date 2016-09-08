@@ -41,10 +41,15 @@ class Cart extends Model
     {
         if($user){
             // get the cart owned by user
-            $cart   = Cart::where("user_id", $user->id)->first();
+            $cart   = Cart::where("user_id", $user->id)
+                ->where("status", CART_STATUS_DRAFTED)
+                ->first();
         } else{
             // get the cart of active session
-                $cart   = null;
+            $session_id     = request()->session()->get("session_id");
+            $cart   = Cart::where("session_id", $session_id)
+                ->where("status", CART_STATUS_DRAFTED)
+                ->first();
         }
 
         return $cart;
@@ -54,51 +59,53 @@ class Cart extends Model
     {
         // prepare data for cart
 
-        if($user){
-            // get the cart owned by user
-            $cart   = self::getUserCart($user);
+        // get the cart owned by user
+        $cart   = self::getUserCart($user);
 
-            if(!$cart){
-                $cart           = new Cart();
-                $cart->user_id  = $user->id;
-                $cart->status   = CART_STATUS_DRAFTED;
-                $cart->params   = json_encode(["plans" => [$plan_id]]);
-            } else{
-                $params         = json_decode($cart->params, true);
+        if(!$cart){
+            $cart               = new Cart();
+            $cart->user_id      = $user ? $user->id : 0;
+            $cart->session_id   = $user ? 0 : time();
+            $cart->status       = CART_STATUS_DRAFTED;
+            $cart->params       = json_encode(["plans" => [$plan_id]]);
 
-                // get the old plans to make sure that same resource is not added twice
-                // if this is the case, we will automatically remove the previous plan of that resource & bind the new one
+            // store the cart session_id in session also
+            request()->session()->put('session_id', $cart->session_id);
+        } else{
+            $params         = json_decode($cart->params, true);
 
-                $old_plans      = Plan::whereIn("id", array_values($params["plans"]))->get();
-                if(!in_array($plan_id, array_values($params["plans"]))){
-                    $new_plan   = Plan::find($plan_id);
+            // get the old plans to make sure that same resource is not added twice
+            // if this is the case, we will automatically remove the previous plan of that resource & bind the new one
 
-                    $plan_added = false;
+            $old_plans      = Plan::whereIn("id", array_values($params["plans"]))->get();
+            if(!in_array($plan_id, array_values($params["plans"]))){
+                $new_plan   = Plan::find($plan_id);
 
-                    foreach($old_plans as $old_plan){
-                        if($new_plan->resource_type == $old_plan->resource_type
-                            && $new_plan->resource_id == $old_plan->resource_id){
+                $plan_added = false;
 
-                            // remove the old plan of that resource associated with this cart
-                            $key    = array_search($old_plan->id, $params["plans"]);
-                            unset($params["plans"][$key]);
+                foreach($old_plans as $old_plan){
+                    if($new_plan->resource_type == $old_plan->resource_type
+                        && $new_plan->resource_id == $old_plan->resource_id){
 
-                            // add the new plan of this resource to the cart
-                            $params["plans"][]  = $plan_id;
-                            $plan_added         = true;
-                        }
-                    }
+                        // remove the old plan of that resource associated with this cart
+                        $key    = array_search($old_plan->id, $params["plans"]);
+                        unset($params["plans"][$key]);
 
-                    if(!$plan_added){
+                        // add the new plan of this resource to the cart
                         $params["plans"][]  = $plan_id;
+                        $plan_added         = true;
                     }
                 }
 
-                $cart->params   = json_encode($params);
+                if(!$plan_added){
+                    $params["plans"][]  = $plan_id;
+                }
             }
 
-            $cart->save();
+            $cart->params   = json_encode($params);
         }
+
+        $cart->save();
 
         // return the number of items in cart
         return self::getCartLength($cart);
@@ -179,6 +186,16 @@ class Cart extends Model
         return ["items" => $items, "total" => $total];
     }
 
+    // apply discount
+    public function applyDiscount($discount)
+    {
+        $params             = json_decode($this->params, true);
+        $params["discount"] = $discount->id;
+
+        $this->params       = json_encode($params);
+        $this->save();
+    }
+
     // get cart total
     public function getCartTotal()
     {
@@ -196,6 +213,34 @@ class Cart extends Model
             }
         }
 
+        if(isset($params["discount"])){
+            $discount   = Discount::find($params["discount"]);
+            if($discount){
+                $total  = $total - (0.01 * $discount->discount_percent * $total);
+            }
+        }
         return $total;
+    }
+
+    // update cart status
+    public function updateStatus($status)
+    {
+        $this->status   = $status;
+        $this->save();
+
+        if($this->status == CART_STATUS_PAID){
+
+            // create subscription for all plans
+            $subscription_ids       = [];
+            $params                 = json_decode($this->params, true);
+            foreach($params["plans"] as $plan_id){
+                $subscription_id    = Subscription::createSubscription($this->user_id, $plan_id);
+                $subscription_ids[] = $subscription_id;
+            }
+
+            $params["subscriptions"]    = $subscription_ids;
+            $this->params               = json_encode($params);
+            $this->save();
+        }
     }
 }

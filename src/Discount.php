@@ -10,13 +10,23 @@ namespace Laravel\Cashier;
 
 use Illuminate\Database\Eloquent\Model;
 
-class PaymentProcessor extends Model
+class Discount extends Model
 {
-    protected $table        = "payment_processor";
+    protected $table        = "discount";
 
     protected $connection   = "vod-tenant";
 
+    protected $fillable = [
+        'title', 'coupon_code', 'discount_percent', 'start_date', 'end_date', 'published', 'params'
+    ];
+
     protected $_permits = null;
+
+    public static function getDiscountList()
+    {
+        $value  = Discount::orderBy('id', 'asc')->paginate(10);
+        return $value;
+    }
 
     public function checkPermission($object, $action, $permissions)
     {
@@ -44,18 +54,18 @@ class PaymentProcessor extends Model
         }
     }
 
-    public static function saveProcessor($id, $data)
+    public function saveData($id, $data)
     {
-        if(!$id){
-            $processor  = new PaymentProcessor();
+        if($id){
+            $discount   = Discount::find($id);
         } else{
-            $processor  = PaymentProcessor::find($id);
+            $discount   = new Discount();
         }
 
         foreach($data as $key => $value){
-            $processor->$key    = $value;
+            $discount->$key = $value;
         }
 
-        $processor->save();
+        $discount->save();
     }
 }
