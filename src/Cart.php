@@ -13,6 +13,7 @@ use App\vod\model\Plan;
 use App\vod\model\Tag;
 use App\vod\model\Movie;
 use App\vod\model\MovieTagMapping;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
@@ -196,6 +197,16 @@ class Cart extends Model
         $this->save();
     }
 
+    // remove discount
+    public function removeDiscount()
+    {
+        $params             = json_decode($this->params, true);
+        unset($params["discount"]);
+
+        $this->params       = json_encode($params);
+        $this->save();
+    }
+
     // get cart total
     public function getCartTotal()
     {
@@ -216,14 +227,20 @@ class Cart extends Model
         if(isset($params["discount"])){
             $discount   = Discount::find($params["discount"]);
             if($discount){
-                $total  = $total - (0.01 * $discount->discount_percent * $total);
+                // apply discount only if the discount is not expired
+                $current_date   = Carbon::now()->toDateTimeString();
+                if($current_date >= $discount->start_date && $current_date <= $discount->end_date){
+                    $total  = $total - (0.01 * $discount->discount_percent * $total);
+                } else{
+                    // do nothing
+                }
             }
         }
         return $total;
     }
 
     // update cart status
-    public function updateStatus($status)
+    public function updateStatus($status, $group_id)
     {
         $this->status   = $status;
         $this->save();
@@ -234,7 +251,7 @@ class Cart extends Model
             $subscription_ids       = [];
             $params                 = json_decode($this->params, true);
             foreach($params["plans"] as $plan_id){
-                $subscription_id    = Subscription::createSubscription($this->user_id, $plan_id);
+                $subscription_id    = Subscription::createSubscription($this->user_id, $plan_id, $group_id);
                 $subscription_ids[] = $subscription_id;
             }
 

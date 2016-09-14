@@ -11,7 +11,6 @@ namespace Laravel\Cashier;
 use App\Events\CreateTransaction;
 use App\Events\InvoicePaid;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Event;
 
 class Invoice extends Model
 {
@@ -19,7 +18,7 @@ class Invoice extends Model
 
     protected $connection   = "vod-tenant";
 
-    public static function createInvoice($user, $amount, $cart_id)
+    public static function createInvoice($user, $amount, $cart_id, $desc = null)
     {
         $invoice                    = new Invoice();
 
@@ -31,6 +30,9 @@ class Invoice extends Model
 
         // set cart_id in params
         $params["cart_id"]          = $cart_id;
+        if($desc){
+            $params["description"]  = $desc;
+        }
         $invoice->params            = json_encode($params);
 
         $invoice->save();

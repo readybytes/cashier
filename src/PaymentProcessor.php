@@ -58,4 +58,14 @@ class PaymentProcessor extends Model
 
         $processor->save();
     }
+
+    public static function getPaymentProcessors()
+    {
+        // get the processor details
+        $processor        = PaymentProcessor::where("published", 1)
+            ->whereNotIn("processor_type", ["offline", "paypal"])
+            ->first();
+
+        return $processor;
+    }
 }

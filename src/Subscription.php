@@ -8,9 +8,13 @@
 
 namespace Laravel\Cashier;
 
+use App\Events\SubscriptionCreated;
 use App\vod\model\Plan;
+use App\vod\model\ResourceAllocator;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Event;
 
 class Subscription extends Model
 {
@@ -18,7 +22,7 @@ class Subscription extends Model
 
     protected $connection   = "vod-tenant";
 
-    public static function createSubscription($user_id, $plan_id)
+    public static function createSubscription($user_id, $plan_id, $group_id)
     {
         $subscription                       = new Subscription();
 
@@ -39,6 +43,8 @@ class Subscription extends Model
 
         $subscription->save();
 
+        Event::fire(new SubscriptionCreated($subscription, $group_id));
+
         return $subscription->id;
     }
 
@@ -47,4 +53,30 @@ class Subscription extends Model
         $this->status   = $status;
         $this->save();
     }
-}
+
+    public static function getSubscriptionStatus($movie_id)
+    {
+        // get the subscription id associated with logged in user for this movie
+        $resource_allocator     = ResourceAllocator::where("user_id", Auth::user()->id)
+            ->where("movie_id", $movie_id)
+            ->first();
+
+        if($resource_allocator){
+            $subscription           = Subscription::find($resource_allocator->subscription_id);
+
+            // check expiration; if the movie is expired
+            if($subscription->expiration_date < Carbon::now()->toDateTimeString()){
+
+                // mark its status as expired here itself
+                if($subscription->status != SUBSCRIPTION_STATUS_EXPIRED){
+                    $subscription->status   = SUBSCRIPTION_STATUS_EXPIRED;
+                    $subscription->save();
+                }
+            }
+
+            return $subscription->status;
+        } else{
+            return false;
+        }
+    }
+} 

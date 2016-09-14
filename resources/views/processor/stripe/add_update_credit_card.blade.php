@@ -6,14 +6,14 @@
  * Time: 7:01 PM
  */
 
-    $processor  = \Laravel\Cashier\PaymentProcessor::where("processor_type", "stripe")->first();
-    $config     = json_decode($processor->processor_config, true);
+$processor  = \Laravel\Cashier\PaymentProcessor::where("processor_type", "stripe")->first();
+$config     = json_decode($processor->processor_config, true);
 
-    if($config["live_account"]){
-        $p_key  = $config["live_publishable_key"];
-    } else{
-        $p_key  = $config["test_publishable_key"];
-    }
+if($config["live_account"]){
+    $p_key  = $config["live_publishable_key"];
+} else{
+    $p_key  = $config["test_publishable_key"];
+}
 
 ?>
 <script type="text/javascript" src="https://js.stripe.com/v2/"></script>
@@ -78,13 +78,8 @@
                 errors.push("Invalid Card Number");
             }
 
-            if(parseInt(exp_month) != "{{@$payment_details["exp_month"]}}" ||
-               parseInt(exp_year) != "{{@$payment_details["exp_year"]}}"){
-                errors.push("Invalid Expiry");
-            }
-
             if(!Stripe.card.validateExpiry(exp_month, exp_year)){
-                errors.push("Your saved card is expired. Please update or use another card!");
+                errors.push("Invalid Expiry");
             }
 
             if(errors.length){
@@ -102,6 +97,7 @@
         }
 
         $("form[data-processor-type='stripe']").submit(function (event) {
+
             // disable the submit button to prevent repeated clicks
             $('.submit-button').attr("disabled", "disabled");
 
@@ -145,16 +141,16 @@
             var new_card    = $(this).data("new-card");
             if(new_card == 1){
                 $("input[data-name='number']").val("").prop("readonly", false);
+                $("select[data-name='exp_month']").val("");
+                $("select[data-name='exp_year']").val("");
                 $("input[data-name='cvc']").val("");
                 $("div[data-name='cvc_block']").show();
-                $("select[data-name='exp_month']").val("").prop("disabled", false);
-                $("select[data-name='exp_year']").val("").prop("disabled", false);
                 $("div[data-name='save_payment_details']").show();
             } else{
                 $("input[data-name='number']").val("{{@$payment_details["number"]}}").prop("readonly", true);
+                $("select[data-name='exp_month']").val("{{@$payment_details["exp_month"]}}");
+                $("select[data-name='exp_year']").val("{{@$payment_details["exp_year"]}}");
                 $("div[data-name='cvc_block']").hide();
-                $("select[data-name='exp_month']").val("{{@$payment_details["exp_month"]}}").prop("disabled", true);
-                $("select[data-name='exp_year']").val("{{@$payment_details["exp_year"]}}").prop("disabled", true);
                 $("div[data-name='save_payment_details']").hide();
             }
         });
@@ -164,14 +160,16 @@
 <div class="uk-alert uk-alert-danger payment-errors" style="display: none;">
     <!-- to display errors returned by createToken -->
 </div>
+
 @if(count($payment_details))
     <div class="uk-alert">
         <div class="uk-form-controls">
-            <label><input type="radio" value="old" data-new-card="0" name="stripe-payment-option" checked> Use Saved Card</label><br/>
-            <label><input type="radio" value="new" data-new-card="1" name="stripe-payment-option"> Update / Use New Card</label>
+            <label><input type="radio" value="old" data-new-card="0" name="stripe-payment-option" checked> Update Saved Card</label><br/>
+            <label><input type="radio" value="new" data-new-card="1" name="stripe-payment-option"> Add New Card</label>
         </div>
     </div>
 @endif
+
 <div class="uk-form-row uk-margin-top">
     <label class="uk-form-label uk-h5">Card Number</label>
     <div class="uk-form-controls">
@@ -181,7 +179,7 @@
 <div class="uk-form-row uk-margin-top">
     <label class="uk-form-label uk-h5">Expiry Month / Expiry Year</label>
     <div class="uk-form-controls">
-        <select data-name="exp_month" class="vod-processor-select" id="payment-processor-stripe-card-expiry-month" @if(count($payment_details)) disabled @endif>
+        <select name="exp_month" data-name="exp_month" class="vod-processor-select" id="payment-processor-stripe-card-expiry-month">
             <option value="" selected="selected" disabled>MM </option>
             <option value="1" @if(@$payment_details["exp_month"] == "1") selected @endif>January</option>
             <option value="2" @if(@$payment_details["exp_month"] == "2") selected @endif>February</option>
@@ -198,7 +196,7 @@
         </select>
         /
         <?php $current_year =  date("Y");?>
-        <select data-name="exp_year" class="vod-processor-select" id="payment-processor-stripe-card-expiry-year" @if(count($payment_details)) disabled @endif>
+        <select name="exp_year" data-name="exp_year" class="vod-processor-select" id="payment-processor-stripe-card-expiry-year">
             <option value="" selected="selected" disabled>YY </option>
             @for($year = $current_year; $year <= $current_year + 20; $year++)
                 <option value="{{$year}}" @if(@$payment_details["exp_year"] == $year) selected @endif>{{$year}}</option>
@@ -206,14 +204,11 @@
         </select>
     </div>
 </div>
-<div class="uk-form-row uk-margin-top" data-name="cvc_block" @if(count($payment_details)) style="display: none;" @endif>
+<div class="uk-form-row uk-margin-top" data-name="cvc_block" @if(count($payment_details)) style="display: none" @endif>
     <label class="uk-form-label uk-h5">CVV</label>
     <div class="uk-form-controls">
         <input type="text" data-name="cvc" name="cvc" placeholder="CVV">
     </div>
 </div>
-<div class="uk-form-row uk-margin-top" data-name="save_payment_details" @if(count($payment_details)) style="display: none;" @endif>
-    <input type="checkbox" class="uk-margin-right" name="save_payment_details">
-    <label><small>Save this card for faster checkout</small></label>
-</div>
+<input type='hidden' name='customer_id' value='{{@$payment_details["customer_id"]}}' />
 <input type='hidden' name='stripeToken' value='{{@$payment_details["token"]}}' />
