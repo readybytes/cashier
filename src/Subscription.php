@@ -57,24 +57,29 @@ class Subscription extends Model
     public static function getSubscriptionStatus($movie_id)
     {
         // get the subscription id associated with logged in user for this movie
-        $resource_allocator     = ResourceAllocator::where("user_id", Auth::user()->id)
-            ->where("movie_id", $movie_id)
-            ->first();
+        $user   = Auth::user();
+        if($user){
+            $resource_allocator     = ResourceAllocator::where("user_id", $user->id)
+                ->where("movie_id", $movie_id)
+                ->first();
 
-        if($resource_allocator){
-            $subscription           = Subscription::find($resource_allocator->subscription_id);
+            if($resource_allocator){
+                $subscription           = Subscription::find($resource_allocator->subscription_id);
 
-            // check expiration; if the movie is expired
-            if($subscription->expiration_date < Carbon::now()->toDateTimeString()){
+                // check expiration; if the movie is expired
+                if($subscription->expiration_date < Carbon::now()->toDateTimeString()){
 
-                // mark its status as expired here itself
-                if($subscription->status != SUBSCRIPTION_STATUS_EXPIRED){
-                    $subscription->status   = SUBSCRIPTION_STATUS_EXPIRED;
-                    $subscription->save();
+                    // mark its status as expired here itself
+                    if($subscription->status != SUBSCRIPTION_STATUS_EXPIRED){
+                        $subscription->status   = SUBSCRIPTION_STATUS_EXPIRED;
+                        $subscription->save();
+                    }
                 }
-            }
 
-            return $subscription->status;
+                return $subscription->status;
+            } else{
+                return false;
+            }
         } else{
             return false;
         }
