@@ -49,7 +49,6 @@ class StripeHelper
         // 3. User chooses to pay from new card & update the same
 
         if(!$card_data){
-            $card_data["token"]         = $token;
             $card_data["customer_id"]   = $this->__createProfile($token, $user->email);
         } else{
             // if user wants to update the card details
