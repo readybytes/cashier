@@ -69,4 +69,20 @@ class Wallet extends Model
 
         return $invoice_ids;
     }
+
+    public static function getWallet($user_id, $group_id, $create = false)
+    {
+        $wallet         = Wallet::where("user_id", $user_id)
+            ->where("group_id", $group_id)
+            ->first();
+
+        if(!$wallet && $create){
+            $wallet             = new Wallet();
+            $wallet->user_id    = $user_id;
+            $wallet->group_id   = $group_id;
+            $wallet->save();
+        }
+
+        return $wallet;
+    }
 }
