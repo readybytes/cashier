@@ -46,5 +46,9 @@ class Transaction extends Model
     {
         $this->payment_status   = $status;
         $this->save();
+
+        if($status == TRANSACTION_STATUS_PAYMENT_COMPLETE){
+            
+        }
     }
 }

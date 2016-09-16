@@ -9,6 +9,7 @@
 namespace Laravel\Cashier\Helpers;
 
 use Carbon\Carbon;
+use Laravel\Cashier\Cashier;
 use Laravel\Cashier\Invoice;
 use Laravel\Cashier\PaymentProcessor;
 use Laravel\Cashier\Wallet;
@@ -155,7 +156,7 @@ class StripeHelper
             $txn            = BalanceTransaction::retrieve($response["gateway_txn_id"]);
             $txn_response   = $txn->getLastResponse()->json;
 
-            $response["gateway_txn_fees"]       = $txn_response["fee"];
+            $response["gateway_txn_fees"]       = $txn_response["fee"] * .01; // because fees is in cents
             $response["data"]["balance_txn"]    = $txn_response;
         } catch(\Exception $e){
             $response["status"]             = "error";
@@ -176,6 +177,8 @@ class StripeHelper
         $config["live_secret_key"]      = $request->get("stripe_live_secret_key", "");
         $config["live_publishable_key"] = $request->get("stripe_live_publishable_key", "");
         $config["live_account"]         = $request->get("stripe_account", "");
+        $config["txn_fees_percent"]     = $request->get("txn_fees_percent");
+        $config["txn_fees_fixed"]       = $request->get("txn_fees_fixed");
 
         return $config;
     }
@@ -252,6 +255,7 @@ class StripeHelper
             "status"            => $status,
             "message"           => $txn->message,
             "payment_details"   => $payment_details,
+            "invoice_id"        => $invoice->id,
         ];
 
         return $response;
@@ -355,5 +359,19 @@ class StripeHelper
         ];
 
         return $response;
+    }
+
+    // return the possible gateway transaction fees if this amount had been paid through Stripe
+    public static function getTransactionFees($processor, $amount)
+    {
+        $processor_config   = json_decode($processor->processor_config, true);
+
+        $txn_fees_percent   = $processor_config["txn_fees_percent"];
+        $txn_fees_fixed     = $processor_config["txn_fees_fixed"];
+
+        // suppose it is 2.9% of amount + addition 30 cents
+        $gateway_txn_fees   = (0.01 * $txn_fees_percent * $amount) + 30;
+
+        return $gateway_txn_fees;
     }
 }

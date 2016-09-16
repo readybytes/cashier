@@ -168,7 +168,7 @@ class Cart extends Model
                     $item['link']       = route("tenant::front::collection::index", [config("vod.active_subdomain"), $resource->slug, $resource->id]);
                     $item['movie_ids']  = explode(",", $resource->collection_movie);
                     $item['tags']       = MovieTagMapping::getResourceTags($item['movie_ids']);
-                    $item['poster']     = asset('assets/image/'.config("vod.active_site").'/collection_poster/')."/$resource->poster}";
+                    $item['poster']     = asset('assets/image/'.config("vod.active_site").'/collection_poster/')."/$resource->poster";
                 }
 
                 $item['title']          = ucwords($resource->title);

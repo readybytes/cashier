@@ -41,7 +41,10 @@ class WalletHelper
             $cart->updateStatus(CART_STATUS_PAID, $group_id);
         }
 
-        return ["status" => true];
+        return [
+            "status"     => true,
+            "invoice_id" => $invoice->id,
+        ];
     }
 
     public function processTransaction($invoice, $wallet, $txn)
