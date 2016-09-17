@@ -68,4 +68,11 @@ class WalletHelper
         // we don't need to display any payment details for the user for allowing payments through wallet
         return [];
     }
+
+    // return the possible gateway transaction fees if this amount had been paid through Stripe
+    public static function getTransactionFees($processor, $amount)
+    {
+        // when payment is done through wallet no extra fees would be deducted afterwards
+        return 0;
+    }
 }

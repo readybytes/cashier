@@ -8,7 +8,9 @@
 
 namespace Laravel\Cashier;
 
+use App\Events\TransactionCompleted;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Event;
 
 class Transaction extends Model
 {
@@ -48,7 +50,7 @@ class Transaction extends Model
         $this->save();
 
         if($status == TRANSACTION_STATUS_PAYMENT_COMPLETE){
-            
+            Event::fire(new TransactionCompleted($this));
         }
     }
 }

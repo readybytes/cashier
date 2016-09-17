@@ -177,8 +177,6 @@ class StripeHelper
         $config["live_secret_key"]      = $request->get("stripe_live_secret_key", "");
         $config["live_publishable_key"] = $request->get("stripe_live_publishable_key", "");
         $config["live_account"]         = $request->get("stripe_account", "");
-        $config["txn_fees_percent"]     = $request->get("txn_fees_percent");
-        $config["txn_fees_fixed"]       = $request->get("txn_fees_fixed");
 
         return $config;
     }
@@ -345,7 +343,9 @@ class StripeHelper
         // check if invoice has been marked paid
         if($status == INVOICE_STATUS_PAID){
             // update Wallet Balance
-            Wallet::updateWalletAfterRecharge($user->id, $group_id, $amount, $invoice->id);
+            $user_id    = $group_id ? 0 : $user->id;
+
+            Wallet::updateWalletAfterRecharge($user_id, $group_id, $amount, $invoice->id);
             $status = true;
         } else{
             $status = false;
@@ -359,19 +359,5 @@ class StripeHelper
         ];
 
         return $response;
-    }
-
-    // return the possible gateway transaction fees if this amount had been paid through Stripe
-    public static function getTransactionFees($processor, $amount)
-    {
-        $processor_config   = json_decode($processor->processor_config, true);
-
-        $txn_fees_percent   = $processor_config["txn_fees_percent"];
-        $txn_fees_fixed     = $processor_config["txn_fees_fixed"];
-
-        // suppose it is 2.9% of amount + addition 30 cents
-        $gateway_txn_fees   = (0.01 * $txn_fees_percent * $amount) + 30;
-
-        return $gateway_txn_fees;
     }
 }

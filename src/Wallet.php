@@ -40,6 +40,13 @@ class Wallet extends Model
             ->where("group_id", $group_id)
             ->first();
 
+        if(!$wallet){
+            $wallet = new Wallet();
+            $wallet->group_id   = $group_id;
+            $wallet->user_id    = $user_id;
+            $wallet->balance    = 0;
+        }
+
         // update wallet balance
         $wallet->balance    = $wallet->balance + $amount;
 
