@@ -16,128 +16,14 @@ if($config["live_account"]){
 }
 
 ?>
-<script type="text/javascript" src="https://js.stripe.com/v2/"></script>
+@if(!isset($stripe_js_added))
+    <?php $stripe_js_added = true;?>
+    @include("vendor.cashier.processor.stripe.stripe_js")
+@endif
+
 <script type="text/javascript">
     $(document).ready(function () {
-        // this identifies your website in the createToken call below
-        Stripe.setPublishableKey('{{$p_key}}');
-
-        function stripeResponseHandler(status, response) {
-            if (response.error) {
-                // re-enable the submit button
-                $('.submit-button').removeAttr("disabled");
-                // show the errors on the form
-                $(".payment-errors").html(response.error.message).show();
-            } else {
-                var form$ = $("form[data-processor-type='stripe']");
-
-                // token contains id, last4, and card type
-                var token = response['id'];
-
-                // insert the token into the form so it gets submitted to the server
-                form$.find("input[name='stripeToken']").val(token);
-
-                // and submit
-                form$.get(0).submit();
-            }
-        }
-
-        function validateCardData(number, cvc, exp_month, exp_year) {
-            // validate data
-            var errors      = [];
-
-            if(!Stripe.card.validateCardNumber(number)){
-                errors.push("Invalid Card Number");
-            }
-
-            if(!Stripe.card.validateExpiry(exp_month, exp_year)){
-                errors.push("Invalid Expiry");
-            }
-
-            if(!Stripe.card.validateCVC(cvc)){
-                errors.push("Invalid CVV");
-            }
-
-            if(errors.length){
-                var error_msg   = "";
-                $(errors).each(function (key, value) {
-                    error_msg += value + "<br/>";
-                })
-
-                $(".payment-errors").html(error_msg).show();
-
-                return false;
-            }
-
-            return true;
-        }
-
-        function validateToken(number, cvc, exp_month, exp_year) {
-            var errors      = [];
-            if(number != "{{@$payment_details["number"]}}"){
-                errors.push("Invalid Card Number");
-            }
-
-            if(!Stripe.card.validateExpiry(exp_month, exp_year)){
-                errors.push("Invalid Expiry");
-            }
-
-            if(errors.length){
-                var error_msg   = "";
-                $(errors).each(function (key, value) {
-                    error_msg += value + "<br/>";
-                })
-
-                $(".payment-errors").html(error_msg).show();
-
-                return false;
-            }
-
-            return true;
-        }
-
-        $("form[data-processor-type='stripe']").submit(function (event) {
-
-            // disable the submit button to prevent repeated clicks
-            $('.submit-button').attr("disabled", "disabled");
-
-            var number      = $("input[data-name='number']").val();
-            var cvc         = $("input[data-name='cvc']").val();
-            var exp_month   = $("select[data-name='exp_month']").val();
-            var exp_year    = $("select[data-name='exp_year']").val();
-
-            if(number.indexOf("************") >= 0){
-                // although the fields are already disabled, we should do validation for security reasons
-                var validation  = validateToken(number, cvc, exp_month, exp_year);
-
-                if(validation){
-                    $("form[data-processor-type='stripe']").get(0).submit();
-
-                    return false; // submit from callback
-                } else{
-
-                }
-            } else{
-                var validation  = validateCardData(number, cvc, exp_month, exp_year);
-
-                if(validation){
-                    // createToken returns immediately - the supplied callback submits the form if there are no errors
-                    Stripe.createToken({
-                        number: number,
-                        cvc: cvc,
-                        exp_month: exp_month,
-                        exp_year: exp_year,
-                    }, stripeResponseHandler);
-
-                    return false; // submit from callback
-                } else{
-
-                }
-            }
-            return false;
-        });
-
-        $("input[name='stripe-payment-option']").change(function () {
+        $("input[name='stripe-payment-option-update']").change(function () {
             var new_card    = $(this).data("new-card");
             if(new_card == 1){
                 $("input[data-name='number']").val("").prop("readonly", false);
@@ -164,8 +50,8 @@ if($config["live_account"]){
 @if(count($payment_details))
     <div class="uk-alert">
         <div class="uk-form-controls">
-            <label><input type="radio" value="old" data-new-card="0" name="stripe-payment-option" checked> Update Saved Card</label><br/>
-            <label><input type="radio" value="new" data-new-card="1" name="stripe-payment-option"> Add New Card</label>
+            <label><input type="radio" value="old" data-new-card="0" name="stripe-payment-option-update" checked> Update Saved Card</label><br/>
+            <label><input type="radio" value="new" data-new-card="1" name="stripe-payment-option-update"> Add New Card</label>
         </div>
     </div>
 @endif
