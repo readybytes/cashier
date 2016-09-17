@@ -18,6 +18,8 @@
 ?>
 <script type="text/javascript" src="https://js.stripe.com/v2/"></script>
 <script type="text/javascript">
+    var form_to_be_submitted;
+
     $(document).ready(function () {
         // this identifies your website in the createToken call below
         Stripe.setPublishableKey('{{$p_key}}');
@@ -29,7 +31,7 @@
                 // show the errors on the form
                 $(".payment-errors").html(response.error.message).show();
             } else {
-                var form$ = $("form[data-processor-type='stripe']");
+                var form$ = form_to_be_submitted;
 
                 // token contains id, last4, and card type
                 var token = response['id'];
@@ -101,7 +103,7 @@
             return true;
         }
 
-        $("form[data-processor-type='stripe']").submit(function (event) {
+        $("form[data-processor-type^='stripe']").submit(function (event) {
             // disable the submit button to prevent repeated clicks
             $('.submit-button').attr("disabled", "disabled");
 
@@ -115,7 +117,7 @@
                 var validation  = validateToken(number, cvc, exp_month, exp_year);
 
                 if(validation){
-                    $("form[data-processor-type='stripe']").get(0).submit();
+                    $(this).get(0).submit();
 
                     return false; // submit from callback
                 } else{
@@ -124,6 +126,7 @@
             } else{
                 var validation  = validateCardData(number, cvc, exp_month, exp_year);
 
+                form_to_be_submitted    = $(this);
                 if(validation){
                     // createToken returns immediately - the supplied callback submits the form if there are no errors
                     Stripe.createToken({
@@ -181,7 +184,7 @@
 <div class="uk-form-row uk-margin-top">
     <label class="uk-form-label uk-h5">Expiry Month / Expiry Year</label>
     <div class="uk-form-controls">
-        <select data-name="exp_month" class="vod-processor-select" id="payment-processor-stripe-card-expiry-month" @if(count($payment_details)) disabled @endif>
+        <select name="exp_month" data-name="exp_month" class="vod-processor-select" id="payment-processor-stripe-card-expiry-month" @if(count($payment_details)) disabled @endif>
             <option value="" selected="selected" disabled>MM </option>
             <option value="1" @if(@$payment_details["exp_month"] == "1") selected @endif>January</option>
             <option value="2" @if(@$payment_details["exp_month"] == "2") selected @endif>February</option>
@@ -198,7 +201,7 @@
         </select>
         /
         <?php $current_year =  date("Y");?>
-        <select data-name="exp_year" class="vod-processor-select" id="payment-processor-stripe-card-expiry-year" @if(count($payment_details)) disabled @endif>
+        <select name="exp_year" data-name="exp_year" class="vod-processor-select" id="payment-processor-stripe-card-expiry-year" @if(count($payment_details)) disabled @endif>
             <option value="" selected="selected" disabled>YY </option>
             @for($year = $current_year; $year <= $current_year + 20; $year++)
                 <option value="{{$year}}" @if(@$payment_details["exp_year"] == $year) selected @endif>{{$year}}</option>
