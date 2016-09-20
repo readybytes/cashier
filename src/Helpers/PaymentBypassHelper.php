@@ -43,7 +43,7 @@ class PaymentBypassHelper
             // nothing needs to be deducted
 
             $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_COMPLETE);
-            $invoice->markPaid($txn);
+            $invoice->markPaid();
         } catch(\Exception $e){
             $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_FAILED);
         }

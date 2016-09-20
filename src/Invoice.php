@@ -10,6 +10,7 @@ namespace Laravel\Cashier;
 
 use App\Events\CreateTransaction;
 use App\Events\InvoicePaid;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
 class Invoice extends Model
@@ -35,6 +36,9 @@ class Invoice extends Model
         }
         $invoice->params            = json_encode($params);
 
+        // due_date
+        $invoice->due_date          = Carbon::now()->addDays(15)->toDateTimeString();
+
         $invoice->save();
 
         return $invoice;
@@ -56,11 +60,17 @@ class Invoice extends Model
         return $transaction;
     }
 
-    public function markPaid($transaction)
+    public function markPaid()
     {
-        $this->transaction_id   = $transaction->id;
         $this->status           = INVOICE_STATUS_PAID;
+        $this->paid_date        = Carbon::now()->toDateTimeString();
         $this->save();
     }
 
+    public function markRefunded()
+    {
+        $this->status           = INVOICE_STATUS_REFUNDED;
+        $this->refund_date      = Carbon::now()->toDateTimeString();
+        $this->save();
+    }
 }

@@ -17,11 +17,13 @@ use Stripe\BalanceTransaction;
 use Stripe\Card;
 use Stripe\Charge;
 use Stripe\Customer;
+use Stripe\Refund;
 use Stripe\Stripe;
 
 class StripeHelper
 {
     protected   $processor;
+    protected   $refund_support = true;
     const TYPE   = "stripe";
 
     public function __construct()
@@ -167,6 +169,25 @@ class StripeHelper
         return $response;
     }
 
+    private function __request_refund($charge)
+    {
+        $refund_response   = Refund::create([
+            "charge"    => $charge,
+        ]);
+
+        // last response
+        $last_response      = $refund_response->getLastResponse();
+        $last_response_json = $last_response->json;
+
+        // status code
+        $response["status_code"]        = $last_response->code;
+        $response["status"]             = $last_response_json["status"];
+
+        // response
+        $response["refund_response"]    = $last_response_json;
+        return $response;
+    }
+
     public static function prepareConfig($request)
     {
         $config = [];
@@ -224,37 +245,45 @@ class StripeHelper
 
     public function payCart($request, $user, $cart)
     {
-        // get the amount to be paid
-        $amount     = $request->get("amount");
+        try{
+            // get the amount to be paid
+            $amount     = $request->get("amount");
 
-        // create invoice
-        $invoice    = Invoice::createInvoice($user, $amount, $cart->id);
+            // create invoice
+            $invoice    = Invoice::createInvoice($user, $amount, $cart->id);
 
-        // payment details
-        $payment_details    = $this->__preparePaymentDetails($user, $request);
+            // payment details
+            $payment_details    = $this->__preparePaymentDetails($user, $request);
 
-        // create transaction
-        $txn        = $invoice->createTransaction($this->processor->id, $payment_details);
+            // create transaction
+            $txn        = $invoice->createTransaction($this->processor->id, $payment_details);
 
-        // make payment
-        $status     = $this->processTransaction($invoice, $payment_details, $txn);
+            // make payment
+            $status     = $this->processTransaction($invoice, $payment_details, $txn);
 
-        // check if invoice has been marked paid
-        if($status == INVOICE_STATUS_PAID){
-            // update Cart
-            $cart->updateStatus(CART_STATUS_PAID, NO_GROUP);
-            $status = true;
-        } else{
-            $status = false;
+            // check if invoice has been marked paid
+            if($status == INVOICE_STATUS_PAID){
+                // update Cart
+                $cart->updateStatus(CART_STATUS_PAID, NO_GROUP, $txn);
+                $status = true;
+            } else{
+                $status = false;
+            }
+
+            // prepare response
+            $response   = [
+                "status"            => $status,
+                "message"           => $txn->message,
+                "payment_details"   => $payment_details,
+                "invoice_id"        => $invoice->id,
+            ];
+        } catch(\Exception $e){
+            // prepare response
+            $response   = [
+                "status"            => false,
+                "message"           => $e->getMessage(),
+            ];
         }
-
-        // prepare response
-        $response   = [
-            "status"            => $status,
-            "message"           => $txn->message,
-            "payment_details"   => $payment_details,
-            "invoice_id"        => $invoice->id,
-        ];
 
         return $response;
     }
@@ -280,7 +309,7 @@ class StripeHelper
                 $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_COMPLETE);
 
                 // mark the invoice paid
-                $invoice->markPaid($txn);
+                $invoice->markPaid();
             } else{
                 throw new \Exception($response["message"]);
             }
@@ -359,5 +388,46 @@ class StripeHelper
         ];
 
         return $response;
+    }
+
+    public function isRefundSupported()
+    {
+        // Yes, Stripe supports refunds
+        return $this->refund_support;
+    }
+
+    public function requestRefund($txn, $invoice)
+    {
+        // make refund
+        try{
+            $params = json_decode($txn->params, true);
+            $charge = $params["txn_details"]["response"]["id"];
+
+            $response   = $this->__request_refund($charge);
+
+            if($response["status_code"] == 200 && $response["status"] == "succeeded"){
+                $params                     = json_decode($txn->params, true);
+                $params["refund_details"]   = $response["refund_response"];
+
+                // update the payment related details in transaction
+                $txn->update([
+                    "params"            => json_encode($params),
+                ]);
+
+                // update the transaction status
+                $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_REFUND);
+
+                // mark the invoice refunded
+                $invoice->markRefunded();
+            } else{
+                throw new \Exception($response["message"]);
+            }
+
+        } catch(\Exception $e){
+            $txn->message   = $e->getMessage();
+            $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_FAILED);
+        }
+
+        return $invoice->status;
     }
 }

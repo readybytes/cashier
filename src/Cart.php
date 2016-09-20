@@ -8,14 +8,17 @@
 
 namespace Laravel\Cashier;
 
+use App\Events\ResourceAllocated;
 use App\vod\model\Collection;
 use App\vod\model\Plan;
+use App\vod\model\ResourceAllocator;
 use App\vod\model\Tag;
 use App\vod\model\Movie;
-use App\vod\model\MovieTagMapping;
+use App\vod\model\MovieTagMapper;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Event;
 
 class Cart extends Model
 {
@@ -160,21 +163,25 @@ class Cart extends Model
                 if($plan->resource_type == RESOURCE_TYPE_MOVIE){
                     $resource   = Movie::find($plan->resource_id);
                     $item['link']       = route("tenant::front::movie::index", [config("vod.active_subdomain"), $resource->slug, $resource->id]);
-                    $item['tags']       = MovieTagMapping::getResourceTags([$resource->id]);
+                    $item['tags']       = MovieTagMapper::getResourceTags([$resource->id]);
                     $item['poster']     = asset('assets/image/'.config("vod.active_site").'/movie_banner/')."/{$resource->poster}";
 
                 } else{
                     $resource   = Collection::find($plan->resource_id);
                     $item['link']       = route("tenant::front::collection::index", [config("vod.active_subdomain"), $resource->slug, $resource->id]);
                     $item['movie_ids']  = explode(",", $resource->collection_movie);
-                    $item['tags']       = MovieTagMapping::getResourceTags($item['movie_ids']);
+                    $item['tags']       = MovieTagMapper::getResourceTags($item['movie_ids']);
                     $item['poster']     = asset('assets/image/'.config("vod.active_site").'/collection_poster/')."/$resource->poster";
                 }
 
                 $item['title']          = ucwords($resource->title);
                 $item['tags']           = implode(",", $item["tags"]);
                 $item['plan_type']      = $plan->plan_type == PLAN_TYPE_PURCHASE ? "Download" : "Rent";
-                $item['duration']       = $plan_details["time"] . " " . $plan_details["time_unit"] . " Plan";
+                if($plan_details["time"] && $plan_details["time_unit"]){
+                    $item['duration']   = $plan_details["time"] . " " . $plan_details["time_unit"] . " Plan";
+                } else{
+                    $item['duration']   = "Lifetime Plan";
+                }
                 $item['subtotal']       = $plan_details["amount"];
 
                 $items[]    = $item;
@@ -240,24 +247,27 @@ class Cart extends Model
     }
 
     // update cart status
-    public function updateStatus($status, $group_id)
+    public function updateStatus($status, $group_id, $txn)
     {
         $this->status   = $status;
         $this->save();
 
         if($this->status == CART_STATUS_PAID){
 
-            // create subscription for all plans
-            $subscription_ids       = [];
-            $params                 = json_decode($this->params, true);
+            // allocate resources for all plans
+            $resources       = [];
+            $params          = json_decode($this->params, true);
             foreach($params["plans"] as $plan_id){
-                $subscription_id    = Subscription::createSubscription($this->user_id, $plan_id, $group_id);
-                $subscription_ids[] = $subscription_id;
+                $resource_id = ResourceAllocator::allocateResource($this->user_id, $plan_id, $group_id);
+                $resources[] = $resource_id;
             }
 
-            $params["subscriptions"]    = $subscription_ids;
-            $this->params               = json_encode($params);
+            unset($params["plans"]);
+            $params["resources"]    = $resources;
+            $this->params           = json_encode($params);
             $this->save();
+
+            Event::fire(new ResourceAllocated($txn, $resources));
         }
     }
 }

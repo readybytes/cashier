@@ -14,37 +14,51 @@ use Laravel\Cashier\Wallet;
 
 class WalletHelper
 {
+    protected $refund_support   = false;
+
     public function payCart($request, $user, $cart)
     {
-        // get the amount to be paid
-        $amount = $request->get("amount");
+        try{
+            // get the amount to be paid
+            $amount = $request->get("amount");
 
-        // get the group_id of wallet used
-        $group_id = $request->get("vod-payment-wallet-gid");
+            // get the group_id of wallet used
+            $group_id = $request->get("vod-payment-wallet-gid");
 
-        // get the wallet to be used for transaction
-        $wallet = Wallet::where("user_id", $user->id)
-            ->where("group_id", $group_id)
-            ->first();
+            // get the wallet to be used for transaction
+            $wallet = Wallet::where("user_id", $user->id)
+                ->where("group_id", $group_id)
+                ->first();
 
-        // create invoice
-        $invoice = Invoice::createInvoice($user, $amount, $cart->id);
+            // payment_details
+            $payment_details                = json_decode($wallet->payment_details, true);
+            $payment_details["wallet_type"] = $group_id == NO_GROUP ? "self" : "group";
+            $payment_details["group_id"]    = $group_id;
 
-        // create transaction
-        $txn = $invoice->createTransaction(PROCESSOR_WALLET, $wallet->payment_details);
+            // create invoice
+            $invoice = Invoice::createInvoice($user, $amount, $cart->id);
 
-        // make payment
-        $status = $this->processTransaction($invoice, $wallet, $txn);
+            // create transaction
+            $txn = $invoice->createTransaction(PROCESSOR_WALLET, $payment_details);
 
-        if ($status == INVOICE_STATUS_PAID) {
-            // update Cart
-            $cart->updateStatus(CART_STATUS_PAID, $group_id);
+            // make payment
+            $status = $this->processTransaction($invoice, $wallet, $txn);
+
+            if ($status == INVOICE_STATUS_PAID) {
+                // update Cart
+                $cart->updateStatus(CART_STATUS_PAID, $group_id, $txn);
+            }
+
+            return [
+                "status"     => true,
+                "invoice_id" => $invoice->id,
+            ];
+        } catch(\Exception $e){
+            return [
+                "status"  => false,
+                "message" => $e->getMessage(),
+            ];
         }
-
-        return [
-            "status"     => true,
-            "invoice_id" => $invoice->id,
-        ];
     }
 
     public function processTransaction($invoice, $wallet, $txn)
@@ -55,7 +69,7 @@ class WalletHelper
             $wallet->save();
 
             $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_COMPLETE);
-            $invoice->markPaid($txn);
+            $invoice->markPaid();
         } catch (\Exception $e) {
             $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_FAILED);
         }
@@ -74,5 +88,10 @@ class WalletHelper
     {
         // when payment is done through wallet no extra fees would be deducted afterwards
         return 0;
+    }
+
+    public function isRefundSupported()
+    {
+        return $this->refund_support;
     }
 }

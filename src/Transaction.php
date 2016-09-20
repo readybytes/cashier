@@ -8,7 +8,7 @@
 
 namespace Laravel\Cashier;
 
-use App\Events\TransactionCompleted;
+use App\Events\TransactionRefunded;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
 
@@ -47,10 +47,32 @@ class Transaction extends Model
     public function updateStatus($status)
     {
         $this->payment_status   = $status;
-        $this->save();
 
         if($status == TRANSACTION_STATUS_PAYMENT_COMPLETE){
-            Event::fire(new TransactionCompleted($this));
+            $this->message      = "Payment completed!";
         }
+
+        if($status == TRANSACTION_STATUS_PAYMENT_REFUND){
+            $this->message      = "Payment completed!";
+            Event::fire(new TransactionRefunded($this));
+        }
+
+
+        $this->save();
+    }
+
+    public function requestRefund()
+    {
+        // get invoice associated with this transaction
+        $invoice    = Invoice::find($this->invoice_id);
+
+        $processor  = PaymentProcessor::find($this->processor_id);
+
+        $helper     = "Laravel\\Cashier\\Helpers\\".ucfirst($processor->processor_type)."Helper";
+
+        $processor  = new $helper();
+        $response   = $processor->requestRefund($this, $invoice);
+
+        return $response;
     }
 }
