@@ -78,22 +78,25 @@ class WalletHelper
             $wallet->consumed_amount = $wallet->consumed_amount + $invoice->total;
             $wallet->save();
 
-            // update group member wallet
-            $g_member_array = array_values(json_decode($group->members, TRUE));
-            for($i = 0; $i < count($g_member_array); $i++){
+            // update group member wallet if user is using group wallet
+            if($group){
+                $g_member_array = array_values(json_decode($group->members, TRUE));
+                for($i = 0; $i < count($g_member_array); $i++){
 
-                if($g_member->email == $g_member_array[$i]['email']){
-                    $members                   = [
-                        'email'                => $g_member_array[$i]['email'],
-                        'limit'                => $g_member_array[$i]['limit'] - $invoice->total,
-                        'is_admin'             => $g_member_array[$i]['is_admin'],
-                    ];
+                    if($g_member->email == $g_member_array[$i]['email']){
+                        $members                   = [
+                            'email'                => $g_member_array[$i]['email'],
+                            'limit'                => $g_member_array[$i]['limit'] - $invoice->total,
+                            'is_admin'             => $g_member_array[$i]['is_admin'],
+                        ];
 
-                    unset($g_member_array[$i]);
-                    $g_member_array[$i] = $members;
+                        unset($g_member_array[$i]);
+                        $g_member_array[$i] = $members;
+                    }
                 }
+                $group->update(['members' => json_encode($g_member_array)]);
             }
-            $group->update(['members' => json_encode($g_member_array)]);
+
 
             $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_COMPLETE);
             $invoice->markPaid();
