@@ -8,6 +8,8 @@
 
 namespace Laravel\Cashier\Helpers;
 
+use App\User;
+use App\vod\model\Group;
 use Illuminate\Support\Facades\Event;
 use Laravel\Cashier\Invoice;
 use Laravel\Cashier\Wallet;
@@ -30,6 +32,13 @@ class WalletHelper
                 ->where("group_id", $group_id)
                 ->first();
 
+            // get the group member detail who used wallet
+            $group         = Group::where("id", "=", $group_id)->first();
+
+            $user_obj      = new User(null, env("DB_TENANT_CONNECTION"));
+
+            $g_member      = $user_obj->where("id", $wallet->user_id)->first();
+
             // payment_details
             $payment_details                = json_decode($wallet->payment_details, true);
             $payment_details["wallet_type"] = $group_id == NO_GROUP ? "self" : "group";
@@ -42,7 +51,7 @@ class WalletHelper
             $txn = $invoice->createTransaction(PROCESSOR_WALLET, $payment_details);
 
             // make payment
-            $status = $this->processTransaction($invoice, $wallet, $txn);
+            $status = $this->processTransaction($invoice, $wallet, $txn, $group, $g_member);
 
             if ($status == INVOICE_STATUS_PAID) {
                 // update Cart
@@ -61,12 +70,30 @@ class WalletHelper
         }
     }
 
-    public function processTransaction($invoice, $wallet, $txn)
+    public function processTransaction($invoice, $wallet, $txn, $group, $g_member)
     {
         // make payment
         try {
-            $wallet->balance = $wallet->balance - $invoice->total;
+            $wallet->balance         = $wallet->balance - $invoice->total;
+            $wallet->consumed_amount = $wallet->consumed_amount + $invoice->total;
             $wallet->save();
+
+            // update group member wallet
+            $g_member_array = array_values(json_decode($group->members, TRUE));
+            for($i = 0; $i < count($g_member_array); $i++){
+
+                if($g_member->email == $g_member_array[$i]['email']){
+                    $members                   = [
+                        'email'                => $g_member_array[$i]['email'],
+                        'limit'                => $g_member_array[$i]['limit'] - $invoice->total,
+                        'is_admin'             => $g_member_array[$i]['is_admin'],
+                    ];
+
+                    unset($g_member_array[$i]);
+                    $g_member_array[$i] = $members;
+                }
+            }
+            $group->update(['members' => json_encode($g_member_array)]);
 
             $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_COMPLETE);
             $invoice->markPaid();
