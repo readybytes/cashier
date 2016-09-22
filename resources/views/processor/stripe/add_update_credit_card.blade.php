@@ -48,15 +48,15 @@ if($config["live_account"]){
 </div>
 
 @if(count($payment_details))
-    <div class="uk-alert">
+    <div class="uk-alert uk-padding-remove">
         <div class="uk-form-controls">
-            <label><input type="radio" value="old" data-new-card="0" name="stripe-payment-option-update" checked> Update Saved Card</label><br/>
-            <label><input type="radio" value="new" data-new-card="1" name="stripe-payment-option-update"> Add New Card</label>
+            <label class="uk-margin-large-right"><input type="radio" value="old" data-new-card="0" name="stripe-payment-option-update" checked> Update Saved Card</label>
+            <label class="uk-margin-large-left"><input type="radio" value="new" data-new-card="1" name="stripe-payment-option-update"> Add New Card</label>
         </div>
     </div>
 @endif
 
-<div class="uk-form-row uk-margin-top">
+<div class="uk-form-row">
     <label class="uk-form-label uk-h5">Card Number</label>
     <div class="uk-form-controls">
         <input type="text" data-name="number" value="{{@$payment_details["number"]}}" placeholder="Card Number" class="uk-form-width-medium" @if(count($payment_details)) readonly @endif>
@@ -93,7 +93,7 @@ if($config["live_account"]){
 <div class="uk-form-row uk-margin-top" data-name="cvc_block" @if(count($payment_details)) style="display: none" @endif>
     <label class="uk-form-label uk-h5">CVV</label>
     <div class="uk-form-controls">
-        <input type="text" data-name="cvc" name="cvc" placeholder="CVV">
+        <input type="text" data-name="cvc" name="cvc" placeholder="CVV" class="uk-form-width-medium">
     </div>
 </div>
 <input type='hidden' name='customer_id' value='{{@$payment_details["customer_id"]}}' />
