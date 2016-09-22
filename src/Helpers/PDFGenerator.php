@@ -13,6 +13,7 @@ class PDFGenerator
     public static function generatePDF($html, $file_name)
     {
         $dompdf = new \DOMPDF();
+        $dompdf->set_option('isHtml5ParserEnabled', true);
         $dompdf->load_html($html);
         $dompdf->set_paper("A4", "portrait");
         $dompdf->render();
