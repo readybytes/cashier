@@ -1,6 +1,7 @@
 <script type="text/javascript" src="https://js.stripe.com/v2/"></script>
 <script type="text/javascript">
     var form_to_be_submitted;
+    var submitted = false;
 
     $(document).ready(function () {
         // this identifies your website in the createToken call below
@@ -12,6 +13,10 @@
                 $('.submit-button').removeAttr("disabled");
                 // show the errors on the form
                 $(".payment-errors").html(response.error.message).show();
+                setTimeout(function () {
+                    $(".payment-errors").html("").hide();
+                }, 3000);
+
             } else {
                 var form$ = form_to_be_submitted;
 
@@ -22,7 +27,12 @@
                 form$.find("input[name='stripeToken']").val(token);
 
                 // and submit
-                form$.get(0).submit();
+                if(!submitted){
+                    submitted   = true;
+                    form$.get(0).submit();
+                }
+
+                return false;
             }
         }
 
@@ -49,6 +59,9 @@
                 })
 
                 $(".payment-errors").html(error_msg).show();
+                setTimeout(function () {
+                    $(".payment-errors").html("").hide();
+                }, 3000);
 
                 return false;
             }
@@ -73,6 +86,9 @@
                 })
 
                 $(".payment-errors").html(error_msg).show();
+                setTimeout(function () {
+                    $(".payment-errors").html("").hide();
+                }, 3000);
 
                 return false;
             }
@@ -96,9 +112,10 @@
                 if(validation){
                     $(this).get(0).submit();
 
+                    load_vod_loader = true;
                     return false; // submit from callback
                 } else{
-
+                    load_vod_loader = false;
                 }
             } else{
                 var validation  = validateCardData(number, cvc, exp_month, exp_year);
@@ -113,9 +130,10 @@
                         exp_year: exp_year,
                     }, stripeResponseHandler);
 
+                    load_vod_loader = true;
                     return false; // submit from callback
                 } else{
-
+                    load_vod_loader = false;
                 }
             }
             return false;
