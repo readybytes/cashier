@@ -194,6 +194,54 @@ class Cart extends Model
         return ["items" => $items, "total" => $total];
     }
 
+    // get the items of cart
+    public function getPaidCartItems()
+    {
+        $params     = json_decode($this->params, true);
+        $resources  = $params["resources"];
+
+        $items      = [];
+        $total      = 0;
+
+        foreach($resources as $resource_id => $subtotal){
+            try{
+                $resource           = ResourceAllocator::find($resource_id);
+                if($resource){
+                    $allocation_date    = Carbon::createFromFormat('Y-n-j G:i:s', $resource->allocation_date);
+                    $expiration_date    = Carbon::createFromFormat('Y-n-j G:i:s', $resource->allocation_date);
+
+                    // if resource is a movie get that movie
+                    if($resource->movie_id){
+                        $resource_data           = Movie::find($resource->movie_id);
+                    } else if($resource->collection_id){
+                      // get the collection
+                        $resource_data           = Collection::find($resource->collection_id);
+                    } else{
+                        // do nothing
+                    }
+
+                    if($resource->status == SUBSCRIPTION_STATUS_LIFETIME){
+                        $item['duration']   = "Lifetime Plan";
+                    } else{
+                        $diff               = $expiration_date->diffInDays($allocation_date);
+                        $item['duration']   = $diff. " Days Plan";
+                    }
+                    $item['title']          = ucwords($resource_data->title);
+                    $item['plan_type']      = $resource_data->plan_type == PLAN_TYPE_PURCHASE ? "Download" : "Rent";
+                    $item['subtotal']       = $subtotal;
+                }
+
+
+                $items[]    = $item;
+                $total     += $item['subtotal'];
+            } catch(\Exception $e){
+                continue;
+            }
+        }
+
+        return ["items" => $items, "total" => $total];
+    }
+
     // apply discount
     public function applyDiscount($discount)
     {
@@ -258,12 +306,16 @@ class Cart extends Model
             $resources       = [];
             $params          = json_decode($this->params, true);
             foreach($params["plans"] as $plan_id){
-                $resource_id = ResourceAllocator::allocateResource($this->user_id, $plan_id, $group_id);
-                $resources[] = $resource_id;
+                $plan                       = Plan::find($plan_id);
+                $plan_details               = json_decode($plan->plan_details, true);
+
+                $resource_id                = ResourceAllocator::allocateResource($this->user_id, $plan_id, $group_id);
+                $resources[$resource_id]    = $plan_details["amount"];
             }
 
             unset($params["plans"]);
             $params["resources"]    = $resources;
+            $params["amount"]       = $txn->amount;
             $this->params           = json_encode($params);
             $this->save();
 
