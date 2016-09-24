@@ -214,6 +214,10 @@ class StripeHelper
             $payment_details    = json_decode($wallet->payment_details, true);
             if(isset($payment_details[$this->processor->processor_type])){
                 $stripe_details = $payment_details[$this->processor->processor_type];
+
+                if(!isset($stripe_details["customer_id"])){
+                    return [];
+                }
                 $customer_id    = $stripe_details["customer_id"];
 
                 // set customer_id in card_details

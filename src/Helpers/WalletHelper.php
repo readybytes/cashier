@@ -80,6 +80,12 @@ class WalletHelper
 
             // update group member wallet if user is using group wallet
             if($group){
+
+                $g_wallet                  = Wallet::where('user_id', '=', 0)->where('group_id', '=', $group->id)->first();
+
+                $g_wallet->consumed_amount = $g_wallet->consumed_amount + $invoice->total;
+                $g_wallet->save();
+
                 $g_member_array = array_values(json_decode($group->members, TRUE));
                 for($i = 0; $i < count($g_member_array); $i++){
 
