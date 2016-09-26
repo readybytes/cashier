@@ -13,11 +13,13 @@ use Laravel\Cashier\Cashier;
 use Laravel\Cashier\Invoice;
 use Laravel\Cashier\PaymentProcessor;
 use Laravel\Cashier\Wallet;
+use League\Url\Url;
 use Stripe\BalanceTransaction;
 use Stripe\Card;
 use Stripe\Charge;
 use Stripe\Customer;
 use Stripe\Refund;
+use Stripe\Source;
 use Stripe\Stripe;
 
 class StripeHelper
@@ -36,40 +38,53 @@ class StripeHelper
 
     private function __preparePaymentDetails($user, $request)
     {
-        // get the token
-        $token      = $request->get("stripeToken");
+        // payment methods can be:
+        // 1. Card
+        // 2. Bitcoin
+        // and payment details are prepared according to payment method only
 
-        // get the payment option
-        $option     = $request->get("stripe-payment-option", "new");
-
-        // get the payment details stored with us
-        $card_data  = $this->getUserPaymentDetails($user->id, true);
-
-        // cases:
-        // 1. We don't have any saved card's details
-        // 1. User chooses to pay from saved card
-        // 2. User chooses to pay from new card but not save it
-        // 3. User chooses to pay from new card & update the same
-
-        if(!$card_data){
-            $card_data["customer_id"]   = $this->__createProfile($token, $user->email);
-        } else{
-            // if user wants to update the card details
-            $save_payment_details    = $request->get("save_payment_details");
-
-            if($option == "new"){
-                if($save_payment_details == "on"){
-                    $customer_id         = $card_data["customer_id"];
-                    $this->__updateCardDetails($customer_id, $token);
-                } else{
-                    $card_data["token"]         = $token;
-                }
-            } else{
-                // do nothing as user has opted to use existing saved card
-            }
+        $method     = $request->get("processor_method", "card");
+        if($method == "bitcoin"){
+            $payment_data["email"]  = $request->get("customer_email");
+            return $payment_data;
         }
 
-        return $card_data;
+        if($method == "card"){
+            // get the token
+            $token      = $request->get("stripeToken");
+
+            // get the payment option
+            $option     = $request->get("stripe-payment-option", "new");
+
+            // get the payment details stored with us
+            $card_data  = $this->getUserPaymentDetails($user->id, true);
+
+            // cases:
+            // 1. We don't have any saved card's details
+            // 1. User chooses to pay from saved card
+            // 2. User chooses to pay from new card but not save it
+            // 3. User chooses to pay from new card & update the same
+
+            if(!$card_data){
+                $card_data["customer_id"]   = $this->__createProfile($token, $user->email);
+            } else{
+                // if user wants to update the card details
+                $save_payment_details    = $request->get("save_payment_details");
+
+                if($option == "new"){
+                    if($save_payment_details == "on"){
+                        $customer_id         = $card_data["customer_id"];
+                        $this->__updateCardDetails($customer_id, $token);
+                    } else{
+                        $card_data["token"]         = $token;
+                    }
+                } else{
+                    // do nothing as user has opted to use existing saved card
+                }
+            }
+
+            return $card_data;
+        }
     }
 
     private function __setStripeKey()
@@ -130,18 +145,11 @@ class StripeHelper
 
     private function __request_payment($payment_details, $amount, $currency)
     {
-        $data   = [];
-
-        $data["amount"]         = $amount * 100; // amount in cents
-        $data["currency"]       = strtolower($currency);
-        if(isset($payment_details["token"])){
-            $data["source"]     = $payment_details["token"];
-        } else{
-            $data["customer"]   = $payment_details["customer_id"];
-        }
-
         try{
-            $charge = Charge::create($data);
+            $payment_method = request()->get("processor_method", "card");
+            $function       = "__request_payment_by_".$payment_method;
+
+            $charge         = $this->$function($payment_details, $amount, $currency);
 
             // prepare response
             $last_response                  = $charge->getLastResponse();
@@ -167,6 +175,51 @@ class StripeHelper
         }
 
         return $response;
+    }
+
+    private function __request_payment_by_card($payment_details, $amount, $currency)
+    {
+        $data   = [];
+
+        $data["amount"]         = $amount * 100; // amount in cents
+        $data["currency"]       = strtolower($currency);
+        if(isset($payment_details["token"])){
+            $data["source"]     = $payment_details["token"];
+        } else{
+            $data["customer"]   = $payment_details["customer_id"];
+        }
+
+        $charge = Charge::create($data);
+
+        return $charge;
+    }
+
+    private function __request_payment_by_bitcoin($payment_details, $amount, $currency)
+    {
+        $source = Source::create(array(
+            "type" => "bitcoin",
+            "amount" => $amount * 100, // in cents
+            "currency" => $currency,
+            "owner" => array(
+                "email" => $payment_details["email"],
+            )
+        ));
+
+        $charge = Charge::create(array(
+            "amount"        => $source->amount,
+            "currency"      => $source->currency,
+            "source"        => $source->id,
+            "description"   => "Bitcoin charge by ".$payment_details['email'],
+        ));
+
+        $json_response  = $source->getLastResponse()->json;
+        $bitcoin_uri    = Url::createFromUrl(str_replace("bitcoin:", "www.anyhost.com/", $json_response["bitcoin"]["uri"]));
+        $query          = $bitcoin_uri->getQuery();
+        $bitcoin_amount = $query["amount"];
+
+        request()->session()->flash('message', "$bitcoin_amount BTC have been successfully deducted from your Bitcoin Wallet");
+
+        return $charge;
     }
 
     private function __request_refund($charge)

@@ -67,9 +67,20 @@ class Cart extends Model
         $cart   = self::getUserCart($user);
 
         if(!$cart){
+            $time               = time();
+            do{
+                $count          = Cart::where("session_id", $time)->count();
+                if(!$count){
+                    $continue   = false;
+                } else{
+                    $time      += 10;
+                    $continue   = true;
+                }
+            } while($continue);
+
             $cart               = new Cart();
             $cart->user_id      = $user ? $user->id : 0;
-            $cart->session_id   = $user ? 0 : time();
+            $cart->session_id   = $user ? 0 : $time;
             $cart->status       = CART_STATUS_DRAFTED;
             $cart->params       = json_encode(["plans" => [$plan_id]]);
 
