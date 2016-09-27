@@ -5,9 +5,11 @@
  * Date: 3/9/16
  * Time: 7:01 PM
  */
+
+$js_load_status    = isset($stripe_bitcoin_js_added) ? $stripe_bitcoin_js_added : false;
 ?>
 
-@if(!$stripe_bitcoin_js_added)
+@if(!$js_load_status)
     <?php $stripe_bitcoin_js_added = true;?>
     <script type="text/javascript">
         var form_submitted  = false;
