@@ -14,6 +14,8 @@ class PDFGenerator
     {
         $dompdf = new \DOMPDF();
         $dompdf->load_html($html);
+        $dompdf->set_option("enable_html5_parser", true);
+        $dompdf->set_option("enable_remote", true);
         $dompdf->set_paper("A4", "portrait");
         $dompdf->render();
 
