@@ -51,7 +51,7 @@
     <div class="uk-alert uk-padding-remove">
         <div class="uk-form-controls">
             <label class="uk-margin-large-right"><input type="radio" value="old" data-new-card="0" name="stripe-payment-option" checked> Use Saved Card</label>
-            <label class="uk-margin-large-left"><input type="radio" value="new" data-new-card="1" name="stripe-payment-option"> Update / Use New Card</label>
+            <label class="uk-margin-large-left"><input type="radio" value="new" data-new-card="1" name="stripe-payment-option"> Use New Card</label>
         </div>
     </div>
 @endif

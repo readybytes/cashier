@@ -27,17 +27,19 @@ if($config["live_account"]){
             var new_card    = $(this).data("new-card");
             if(new_card == 1){
                 $("input[data-name='number']").val("").prop("readonly", false);
-                $("select[data-name='exp_month']").val("");
-                $("select[data-name='exp_year']").val("");
+                $("select[data-name='exp_month']").val("").prop("disabled", false);
+                $("select[data-name='exp_year']").val("").prop("disabled", false);
                 $("input[data-name='cvc']").val("");
                 $("div[data-name='cvc_block']").show();
                 $("div[data-name='save_payment_details']").show();
+                $("a.vod-add-card").show();
             } else{
                 $("input[data-name='number']").val("{{@$payment_details["number"]}}").prop("readonly", true);
-                $("select[data-name='exp_month']").val("{{@$payment_details["exp_month"]}}");
-                $("select[data-name='exp_year']").val("{{@$payment_details["exp_year"]}}");
+                $("select[data-name='exp_month']").val("{{@$payment_details["exp_month"]}}").prop("disabled", true);
+                $("select[data-name='exp_year']").val("{{@$payment_details["exp_year"]}}").prop("disabled", true);
                 $("div[data-name='cvc_block']").hide();
                 $("div[data-name='save_payment_details']").hide();
+                $("a.vod-add-card").hide();
             }
         });
     });
@@ -50,7 +52,7 @@ if($config["live_account"]){
 @if(count($payment_details))
     <div class="uk-alert uk-padding-remove">
         <div class="uk-form-controls">
-            <label class="uk-margin-large-right"><input type="radio" value="old" data-new-card="0" name="stripe-payment-option-update" checked> Update Saved Card</label>
+            <label class="uk-margin-large-right"><input type="radio" value="old" data-new-card="0" name="stripe-payment-option-update" checked> Use Existing Card</label>
             <label class="uk-margin-large-left"><input type="radio" value="new" data-new-card="1" name="stripe-payment-option-update"> Add New Card</label>
         </div>
     </div>
@@ -65,7 +67,7 @@ if($config["live_account"]){
 <div class="uk-form-row uk-margin-top">
     <label class="uk-form-label uk-h5">Expiry Month / Expiry Year</label>
     <div class="uk-form-controls">
-        <select name="exp_month" data-name="exp_month" class="vod-processor-select" id="payment-processor-stripe-card-expiry-month">
+        <select name="exp_month" data-name="exp_month" class="vod-processor-select" id="payment-processor-stripe-card-expiry-month" @if(count($payment_details)) disabled @endif>
             <option value="" selected="selected" disabled>MM </option>
             <option value="1" @if(@$payment_details["exp_month"] == "1") selected @endif>January</option>
             <option value="2" @if(@$payment_details["exp_month"] == "2") selected @endif>February</option>
@@ -82,7 +84,7 @@ if($config["live_account"]){
         </select>
         /
         <?php $current_year =  date("Y");?>
-        <select name="exp_year" data-name="exp_year" class="vod-processor-select" id="payment-processor-stripe-card-expiry-year">
+        <select name="exp_year" data-name="exp_year" class="vod-processor-select" id="payment-processor-stripe-card-expiry-year" @if(count($payment_details)) disabled @endif>
             <option value="" selected="selected" disabled>YY </option>
             @for($year = $current_year; $year <= $current_year + 20; $year++)
                 <option value="{{$year}}" @if(@$payment_details["exp_year"] == $year) selected @endif>{{$year}}</option>

@@ -232,13 +232,13 @@ class Cart extends Model
                     }
 
                     if($resource->status == SUBSCRIPTION_STATUS_LIFETIME){
-                        $item['duration']   = "Lifetime Plan";
+                        $item['duration']   = "-";
                     } else{
                         $diff               = $expiration_date->diffInDays($allocation_date);
                         $item['duration']   = $diff. " Days Plan";
                     }
                     $item['title']          = ucwords($resource_data->title);
-                    $item['plan_type']      = $resource_data->plan_type == PLAN_TYPE_PURCHASE ? "Download" : "Rent";
+                    $item['plan_type']      = $resource->plan_type == PLAN_TYPE_PURCHASE ? "Download" : "Rent";
                     $item['subtotal']       = $subtotal;
                 }
 
