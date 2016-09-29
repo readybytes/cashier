@@ -126,6 +126,39 @@ class Cart extends Model
         return self::getCartLength($cart);
     }
 
+    public static function validateResourcePlanInCart($plan_id, $user)
+    {
+        $plan_changed   = false;
+        $plan_type = $plan_amount = $plan_time = null;
+
+        // get the cart owned by user
+        $cart   = self::getUserCart($user);
+
+        if($cart){
+            $params         = json_decode($cart->params, true);
+            $old_plans      = Plan::whereIn("id", array_values($params["plans"]))->get();
+
+            if(!in_array($plan_id, array_values($params["plans"]))){
+                $new_plan   = Plan::find($plan_id);
+
+                foreach($old_plans as $old_plan){
+                    if($new_plan->resource_type == $old_plan->resource_type
+                        && $new_plan->resource_id == $old_plan->resource_id){
+
+                        // that means user is the same resource
+                        $plan_changed   = true;
+                        $plan_details   = json_decode($old_plan->plan_details, true);
+                        $plan_type      = $old_plan->plan_type == PLAN_TYPE_PURCHASE ? "download" : "rent";
+                        $plan_time      = $old_plan->plan_type == PLAN_TYPE_PURCHASE ? "Lifetime" : $plan_details["time"] ." ". $plan_details["time_unit"];
+                        $plan_amount    = config("vod.currency_symbol").$plan_details["amount"];
+                    }
+                }
+            }
+        }
+
+        return [$plan_changed, $plan_type, $plan_amount, $plan_time];
+    }
+
     // to delete any plan associated with any resource from the cart
     public function deleteResourceFromCart($plan_id)
     {
