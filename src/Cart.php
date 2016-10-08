@@ -10,8 +10,7 @@ namespace Laravel\Cashier;
 
 use App\Events\ResourceAllocated;
 use App\vod\model\Collection;
-use App\vod\model\Plan;
-use App\vod\model\ResourceAllocator;
+use App\vod\model\ResourcePlans;
 use App\vod\model\Tag;
 use App\vod\model\Movie;
 use App\vod\model\MovieTagMapper;
@@ -92,9 +91,9 @@ class Cart extends Model
             // get the old plans to make sure that same resource is not added twice
             // if this is the case, we will automatically remove the previous plan of that resource & bind the new one
 
-            $old_plans      = Plan::whereIn("id", array_values($params["plans"]))->get();
+            $old_plans      = ResourcePlans::whereIn("id", array_values($params["plans"]))->get();
             if(!in_array($plan_id, array_values($params["plans"]))){
-                $new_plan   = Plan::find($plan_id);
+                $new_plan   = ResourcePlans::find($plan_id);
 
                 $plan_added = false;
 
@@ -136,10 +135,10 @@ class Cart extends Model
 
         if($cart){
             $params         = json_decode($cart->params, true);
-            $old_plans      = Plan::whereIn("id", array_values($params["plans"]))->get();
+            $old_plans      = ResourcePlans::whereIn("id", array_values($params["plans"]))->get();
 
             if(!in_array($plan_id, array_values($params["plans"]))){
-                $new_plan   = Plan::find($plan_id);
+                $new_plan   = ResourcePlans::find($plan_id);
 
                 foreach($old_plans as $old_plan){
                     if($new_plan->resource_type == $old_plan->resource_type
@@ -201,7 +200,7 @@ class Cart extends Model
                 $item               = [];
                 $item["plan_id"]    = $plan_id;
 
-                $plan               = Plan::find($plan_id);
+                $plan               = ResourcePlans::find($plan_id);
                 $plan_details       = json_decode($plan->plan_details, true);
 
                 if($plan->resource_type == RESOURCE_TYPE_MOVIE){
@@ -249,7 +248,7 @@ class Cart extends Model
 
         foreach($resources as $resource_id => $subtotal){
             try{
-                $resource           = ResourceAllocator::find($resource_id);
+                $resource           = \App\vod\model\ResourceAllocated::find($resource_id);
                 if($resource){
                     $allocation_date    = Carbon::createFromFormat('Y-n-j G:i:s', $resource->allocation_date);
                     $expiration_date    = Carbon::createFromFormat('Y-n-j G:i:s', $resource->allocation_date);
@@ -315,7 +314,7 @@ class Cart extends Model
 
         foreach($plans as $plan_id){
             try{
-                $plan           = Plan::find($plan_id);
+                $plan           = ResourcePlans::find($plan_id);
                 $plan_details   = json_decode($plan->plan_details, true);
                 $total         += $plan_details["amount"];
             } catch(\Exception $e){
@@ -350,10 +349,10 @@ class Cart extends Model
             $resources       = [];
             $params          = json_decode($this->params, true);
             foreach($params["plans"] as $plan_id){
-                $plan                       = Plan::find($plan_id);
+                $plan                       = ResourcePlans::find($plan_id);
                 $plan_details               = json_decode($plan->plan_details, true);
 
-                $resource_id                = ResourceAllocator::allocateResource($this->user_id, $plan_id, $group_id);
+                $resource_id                = \App\vod\model\ResourceAllocated::allocateResource($this->user_id, $plan_id, $group_id);
                 $resources[$resource_id]    = $plan_details["amount"];
             }
 

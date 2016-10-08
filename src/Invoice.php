@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Invoice extends Model
 {
-    protected $table        = "invoice";
+    protected $table        = "payment_invoice";
 
     protected $connection   = "vod-tenant";
 
@@ -34,6 +34,7 @@ class Invoice extends Model
         if($desc){
             $params["description"]  = $desc;
         }
+
         $invoice->params            = json_encode($params);
 
         // due_date
@@ -60,8 +61,9 @@ class Invoice extends Model
         return $transaction;
     }
 
-    public function markPaid()
+    public function markPaid($txn_id)
     {
+        $this->transaction_id   = $txn_id;
         $this->status           = INVOICE_STATUS_PAID;
         $this->paid_date        = Carbon::now()->toDateTimeString();
         $this->save();

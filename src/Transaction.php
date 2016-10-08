@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Event;
 
 class Transaction extends Model
 {
-    protected $table        = "transaction";
+    protected $table        = "payment_transaction";
 
     protected $connection   = "vod-tenant";
 

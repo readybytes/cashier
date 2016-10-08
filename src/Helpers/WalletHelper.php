@@ -8,8 +8,11 @@
 
 namespace Laravel\Cashier\Helpers;
 
+use App\Listeners\RevenueSplitter;
+use App\vod\model\ResourceAllocated;
 use App\User;
 use App\vod\model\Group;
+use App\vod\model\UserGroup;
 use Illuminate\Support\Facades\Event;
 use Laravel\Cashier\Invoice;
 use Laravel\Cashier\Wallet;
@@ -70,6 +73,68 @@ class WalletHelper
         }
     }
 
+    public function payForTokenBasedUrl($request, $user, $resource_data)
+    {
+        try{
+            // get the amount to be paid
+            $amount     = $request->get("amount");
+
+            // get the group_id of wallet used
+            $group_id = $request->get("vod-payment-wallet-gid");
+
+            // get the wallet to be used for transaction
+            $wallet = Wallet::where("user_id", $user->id)
+                ->where("group_id", $group_id)
+                ->first();
+
+            // get the group member detail who used wallet
+            $group         = UserGroup::where("id", "=", $group_id)->first();
+
+            $user_obj      = new User(null, env("DB_TENANT_CONNECTION"));
+
+            $g_member      = $user_obj->where("id", $wallet->user_id)->first();
+
+            // payment_details
+            $payment_details                = json_decode($wallet->payment_details, true);
+            $payment_details["wallet_type"] = $group_id == NO_GROUP ? "self" : "group";
+            $payment_details["group_id"]    = $group_id;
+
+            // create invoice
+            $invoice    = Invoice::createInvoice($user, $amount, 0, "Url Sharing for ".ucwords($resource_data["movie_title"]));
+
+            // create transaction
+            $txn = $invoice->createTransaction(PROCESSOR_WALLET, $payment_details);
+
+            // make payment
+            $status = $this->processTransaction($invoice, $wallet, $txn, $group, $g_member);
+
+            // check if invoice has been marked paid
+            if($status == INVOICE_STATUS_PAID){
+                $resource   = ResourceAllocated::allocateAnonymousAccess($resource_data);
+                RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id);
+                $status = true;
+            } else{
+                $status = false;
+            }
+
+            // prepare response
+            $response   = [
+                "status"            => $status,
+                "message"           => $txn->message,
+                "invoice_id"        => $invoice->id,
+                "resource"          => $resource,
+            ];
+        } catch(\Exception $e){
+            // prepare response
+            $response   = [
+                "status"            => false,
+                "message"           => $e->getMessage(),
+            ];
+        }
+
+        return $response;
+    }
+
     public function processTransaction($invoice, $wallet, $txn, $group, $g_member)
     {
         // make payment
@@ -78,34 +143,8 @@ class WalletHelper
             $wallet->consumed_amount = $wallet->consumed_amount + $invoice->total;
             $wallet->save();
 
-            // update group member wallet if user is using group wallet
-            if($group){
-
-                $g_wallet                  = Wallet::where('user_id', '=', 0)->where('group_id', '=', $group->id)->first();
-
-                $g_wallet->consumed_amount = $g_wallet->consumed_amount + $invoice->total;
-                $g_wallet->save();
-
-                $g_member_array = array_values(json_decode($group->members, TRUE));
-                for($i = 0; $i < count($g_member_array); $i++){
-
-                    if($g_member->email == $g_member_array[$i]['email']){
-                        $members                   = [
-                            'email'                => $g_member_array[$i]['email'],
-                            'limit'                => $g_member_array[$i]['limit'] - $invoice->total,
-                            'is_admin'             => $g_member_array[$i]['is_admin'],
-                        ];
-
-                        unset($g_member_array[$i]);
-                        $g_member_array[$i] = $members;
-                    }
-                }
-                $group->update(['members' => json_encode($g_member_array)]);
-            }
-
-
             $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_COMPLETE);
-            $invoice->markPaid();
+            $invoice->markPaid($txn->id);
         } catch (\Exception $e) {
             $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_FAILED);
         }

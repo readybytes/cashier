@@ -8,6 +8,8 @@
 
 namespace Laravel\Cashier\Helpers;
 
+use App\Listeners\RevenueSplitter;
+use App\vod\model\ResourceAllocated;
 use Carbon\Carbon;
 use Laravel\Cashier\Cashier;
 use Laravel\Cashier\Invoice;
@@ -345,6 +347,52 @@ class StripeHelper
         return $response;
     }
 
+    public function payForTokenBasedUrl($request, $user, $resource_data)
+    {
+        try{
+            // get the amount to be paid
+            $amount     = $request->get("amount");
+
+            // create invoice
+            $invoice    = Invoice::createInvoice($user, $amount, 0, "Url Sharing for ".ucwords($resource_data["movie_title"]));
+
+            // payment details
+            $payment_details    = $this->__preparePaymentDetails($user, $request);
+
+            // create transaction
+            $txn        = $invoice->createTransaction($this->processor->id, $payment_details);
+
+            // make payment
+            $status     = $this->processTransaction($invoice, $payment_details, $txn);
+
+            // check if invoice has been marked paid
+            if($status == INVOICE_STATUS_PAID){
+                $resource   = ResourceAllocated::allocateAnonymousAccess($resource_data);
+                RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id);
+                $status = true;
+            } else{
+                $status = false;
+            }
+
+            // prepare response
+            $response   = [
+                "status"            => $status,
+                "message"           => $txn->message,
+                "payment_details"   => $payment_details,
+                "invoice_id"        => $invoice->id,
+                "resource"          =>  $resource,
+            ];
+        } catch(\Exception $e){
+            // prepare response
+            $response   = [
+                "status"            => false,
+                "message"           => $e->getMessage(),
+            ];
+        }
+
+        return $response;
+    }
+
     public function processTransaction($invoice, $payment_details, $txn)
     {
         // make payment
@@ -366,7 +414,7 @@ class StripeHelper
                 $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_COMPLETE);
 
                 // mark the invoice paid
-                $invoice->markPaid();
+                $invoice->markPaid($txn->id);
             } else{
                 throw new \Exception($response["message"]);
             }
