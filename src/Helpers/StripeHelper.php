@@ -414,7 +414,7 @@ class StripeHelper
                 $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_COMPLETE);
 
                 // mark the invoice paid
-                $invoice->markPaid($txn->id);
+                $invoice->markPaid();
             } else{
                 throw new \Exception($response["message"]);
             }

@@ -61,9 +61,8 @@ class Invoice extends Model
         return $transaction;
     }
 
-    public function markPaid($txn_id)
+    public function markPaid()
     {
-        $this->transaction_id   = $txn_id;
         $this->status           = INVOICE_STATUS_PAID;
         $this->paid_date        = Carbon::now()->toDateTimeString();
         $this->save();

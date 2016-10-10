@@ -144,7 +144,7 @@ class WalletHelper
             $wallet->save();
 
             $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_COMPLETE);
-            $invoice->markPaid($txn->id);
+            $invoice->markPaid();
         } catch (\Exception $e) {
             $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_FAILED);
         }
