@@ -11,7 +11,6 @@ namespace Laravel\Cashier\Helpers;
 use App\Listeners\RevenueSplitter;
 use App\vod\model\ResourceAllocated;
 use App\User;
-use App\vod\model\Group;
 use App\vod\model\UserGroup;
 use Illuminate\Support\Facades\Event;
 use Laravel\Cashier\Invoice;
@@ -36,7 +35,7 @@ class WalletHelper
                 ->first();
 
             // get the group member detail who used wallet
-            $group         = Group::where("id", "=", $group_id)->first();
+            $group         = UserGroup::where("id", "=", $group_id)->first();
 
             $user_obj      = new User(null, env("DB_TENANT_CONNECTION"));
 
