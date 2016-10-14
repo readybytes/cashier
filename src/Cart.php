@@ -340,29 +340,45 @@ class Cart extends Model
     // update cart status
     public function updateStatus($status, $group_id, $txn)
     {
-        $this->status   = $status;
-        $this->save();
-
-        if($this->status == CART_STATUS_PAID){
-
-            // allocate resources for all plans
-            $resources       = [];
-            $params          = json_decode($this->params, true);
-            foreach($params["plans"] as $plan_id){
-                $plan                       = ResourcePlans::find($plan_id);
-                $plan_details               = json_decode($plan->plan_details, true);
-
-                $resource_id                = \App\vod\model\ResourceAllocated::allocateResource($this->user_id, $plan_id, $group_id);
-                $resources[$resource_id]    = $plan_details["amount"];
-            }
-
-            unset($params["plans"]);
-            $params["resources"]    = $resources;
-            $params["amount"]       = $txn->amount;
-            $this->params           = json_encode($params);
+        try{
+            $this->status   = $status;
             $this->save();
 
-            Event::fire(new ResourceAllocated($txn, $resources));
+            $params          = json_decode($this->params, true);
+            $plans           = $params["plans"];
+
+            if($this->status == CART_STATUS_PAID){
+
+                // allocate resources for all plans
+                $resources       = [];
+                foreach($params["plans"] as $plan_id){
+                    $plan                       = ResourcePlans::find($plan_id);
+                    $plan_details               = json_decode($plan->plan_details, true);
+
+                    $resource_id                = \App\vod\model\ResourceAllocated::allocateResource($this->user_id, $plan_id, $group_id);
+                    $resources[$resource_id]    = $plan_details["amount"];
+                }
+
+                unset($params["plans"]);
+                $params["resources"]    = $resources;
+                $params["amount"]       = $txn->amount;
+                $this->params           = json_encode($params);
+                $this->save();
+
+                Event::fire(new ResourceAllocated($txn, $resources));
+            }
+        } catch(\Exception $e){
+            // revert cart status
+            $this->status   = CART_STATUS_DRAFTED;
+            $this->params   = json_encode(["plans" => $plans]);
+            $this->save();
+
+            if(isset($resource_id)){
+                \App\vod\model\ResourceAllocated::where("id", $resource_id)->delete();
+            }
+
+            // TODO::Log the exception properly
+            throw $e;
         }
     }
 }

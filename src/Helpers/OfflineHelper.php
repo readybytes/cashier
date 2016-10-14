@@ -10,6 +10,10 @@ namespace Laravel\Cashier\Helpers;
 
 class OfflineHelper
 {
+    protected   $processor;
+    protected   $refund_support = false;
+    const TYPE   = "offline";
+
     public static function prepareConfig($request)
     {
         $config = [];
@@ -19,5 +23,11 @@ class OfflineHelper
         $config["account_number"]       = $request->get("offline_account_number", "");
 
         return $config;
+    }
+
+    public function isRefundSupported()
+    {
+        // NO, Offline transactions don't support refunds
+        return $this->refund_support;
     }
 }

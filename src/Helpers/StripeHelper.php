@@ -154,22 +154,7 @@ class StripeHelper
             $charge         = $this->$function($payment_details, $amount, $currency);
 
             // prepare response
-            $last_response                  = $charge->getLastResponse();
-            $last_response_json             = $last_response->json;
-
-            // status code
-            $response["status_code"]        = $last_response->code;
-            $response["status"]             = $last_response_json["status"];
-
-            $response["data"]["response"]   = $last_response_json;
-            $response["gateway_txn_id"]     = $last_response_json["balance_transaction"];
-
-            // get the processing fees of Stripe
-            $txn            = BalanceTransaction::retrieve($response["gateway_txn_id"]);
-            $txn_response   = $txn->getLastResponse()->json;
-
-            $response["gateway_txn_fees"]       = $txn_response["fee"] * .01; // because fees is in cents
-            $response["data"]["balance_txn"]    = $txn_response;
+            $response       = $this->__prepare_response($charge);
         } catch(\Exception $e){
             $response["status"]             = "error";
             $response["status_code"]        = 0;
@@ -240,6 +225,28 @@ class StripeHelper
 
         // response
         $response["refund_response"]    = $last_response_json;
+        return $response;
+    }
+
+    private static function __prepare_response($charge)
+    {
+        $last_response                  = $charge->getLastResponse();
+        $last_response_json             = $last_response->json;
+
+        // status code
+        $response["status_code"]        = $last_response->code;
+        $response["status"]             = $last_response_json["status"];
+
+        $response["data"]["response"]   = $last_response_json;
+        $response["gateway_txn_id"]     = $last_response_json["balance_transaction"];
+
+        // get the processing fees of Stripe
+        $txn            = BalanceTransaction::retrieve($response["gateway_txn_id"]);
+        $txn_response   = $txn->getLastResponse()->json;
+
+        $response["gateway_txn_fees"]       = $txn_response["fee"] * .01; // because fees is in cents
+        $response["data"]["balance_txn"]    = $txn_response;
+
         return $response;
     }
 
@@ -337,11 +344,28 @@ class StripeHelper
                 "invoice_id"        => $invoice->id,
             ];
         } catch(\Exception $e){
+
+            // delete the transaction
+            if(isset($txn)){
+                // revert the transaction in case it is already processed
+                if($txn->payment_status == TRANSACTION_STATUS_PAYMENT_COMPLETE){
+                    $this->requestRefund($txn, $invoice);
+                }
+                $txn->delete();
+            }
+
+            // delete the invoice
+            if(isset($invoice)){
+                $invoice->delete();
+            }
+
             // prepare response
             $response   = [
                 "status"            => false,
                 "message"           => $e->getMessage(),
             ];
+
+            // TODO::Log the exception properly
         }
 
         return $response;
@@ -383,11 +407,28 @@ class StripeHelper
                 "resource"          =>  $resource,
             ];
         } catch(\Exception $e){
+
+            // delete the transaction
+            if(isset($txn)){
+                // revert the transaction in case it is already processed
+                if($txn->payment_status == TRANSACTION_STATUS_PAYMENT_COMPLETE){
+                    $this->requestRefund($txn, $invoice);
+                }
+                $txn->delete();
+            }
+
+            // delete the invoice
+            if(isset($invoice)){
+                $invoice->delete();
+            }
+
             // prepare response
             $response   = [
                 "status"            => false,
                 "message"           => $e->getMessage(),
             ];
+
+            // TODO::Log the exception properly
         }
 
         return $response;
@@ -456,41 +497,67 @@ class StripeHelper
 
     public function rechargeWallet($request, $user)
     {
-        // get the amount to be paid
-        $amount     = $request->get("amount");
+        try{
+            // get the amount to be paid
+            $amount     = $request->get("amount");
 
-        // get the group_id
-        $group_id   = $request->get("group_id");
+            // get the group_id
+            $group_id   = $request->get("group_id");
 
-        // create invoice
-        $invoice    = Invoice::createInvoice($user, $amount, 0, "Wallet Recharge");
+            // create invoice
+            $invoice    = Invoice::createInvoice($user, $amount, 0, "Wallet Recharge");
 
-        // payment details
-        $payment_details    = $this->__preparePaymentDetails($user, $request);
+            // payment details
+            $payment_details    = $this->__preparePaymentDetails($user, $request);
 
-        // create transaction
-        $txn        = $invoice->createTransaction($this->processor->id, $payment_details);
+            // create transaction
+            $txn        = $invoice->createTransaction($this->processor->id, $payment_details);
 
-        // make payment
-        $status     = $this->processTransaction($invoice, $payment_details, $txn);
+            // make payment
+            $status     = $this->processTransaction($invoice, $payment_details, $txn);
 
-        // check if invoice has been marked paid
-        if($status == INVOICE_STATUS_PAID){
-            // update Wallet Balance
-            $user_id    = $group_id ? 0 : $user->id;
+            // check if invoice has been marked paid
+            if($status == INVOICE_STATUS_PAID){
+                // update Wallet Balance
+                $user_id    = $group_id ? 0 : $user->id;
 
-            Wallet::updateWalletAfterRecharge($user_id, $group_id, $amount, $invoice->id);
-            $status = true;
-        } else{
-            $status = false;
+                Wallet::updateWalletAfterRecharge($user_id, $group_id, $amount, $invoice->id);
+                $status = true;
+            } else{
+                $status = false;
+            }
+
+            // prepare response
+            $response   = [
+                "status"            => $status,
+                "message"           => $txn->message,
+                "payment_details"   => $payment_details,
+            ];
+
+        } catch(\Exception $e){
+
+            // delete the transaction
+            if(isset($txn)){
+                // revert the transaction in case it is already processed
+                if($txn->payment_status == TRANSACTION_STATUS_PAYMENT_COMPLETE){
+                    $this->requestRefund($txn, $invoice);
+                }
+                $txn->delete();
+            }
+
+            // delete the invoice
+            if(isset($invoice)){
+                $invoice->delete();
+            }
+
+            // prepare response
+            $response   = [
+                "status"            => false,
+                "message"           => $e->getMessage(),
+            ];
+
+            // TODO::Log the exception properly
         }
-
-        // prepare response
-        $response   = [
-            "status"            => $status,
-            "message"           => $txn->message,
-            "payment_details"   => $payment_details,
-        ];
 
         return $response;
     }
@@ -534,5 +601,22 @@ class StripeHelper
         }
 
         return $invoice->status;
+    }
+
+    public function getTransactionDetails($txn_id)
+    {
+        $txn            = BalanceTransaction::retrieve($txn_id);
+
+        // prepare response
+        $txn_response   = $txn->getLastResponse()->json;
+
+        $response["gateway_txn_fees"]       = $txn_response["fee"] * .01; // because fees is in cents
+        $response["data"]["balance_txn"]    = $txn_response;
+
+        return [
+            $txn_id,
+            $response["gateway_txn_fees"],
+            $response["data"],
+        ];
     }
 }

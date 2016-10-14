@@ -74,4 +74,67 @@ class Invoice extends Model
         $this->refund_date      = Carbon::now()->toDateTimeString();
         $this->save();
     }
+
+    public static function getInvoiceList($invoice_id = null)
+    {
+        $query          = Invoice::query();
+
+        $query->select('payment_invoice.id', 'payment_invoice.serial', 'payment_invoice.total',
+            'payment_invoice.status', 'payment_invoice.paid_date', 'payment_processor.processor_type', 'users.email')
+            ->join('payment_transaction', 'payment_invoice.id', '=', 'payment_transaction.invoice_id')
+            ->join('payment_processor', 'payment_processor.id', '=', 'payment_transaction.processor_id')
+            ->join('users', 'users.id', '=', 'payment_invoice.user_id');
+
+        if($invoice_id){
+            $query->where("payment_invoice.invoice", $invoice_id);
+        }
+
+        $invoice_list   = $query->orderBy('payment_invoice.created_at', 'DESC')
+            ->paginate(20);
+
+        return $invoice_list;
+    }
+
+    public function markPaidManually($processor_id, $gateway_txn_id, $offline_txn_notes)
+    {
+        // first of all, check if this invoice is associated with any transaction or not
+        // if not, create the txn simultaneously
+
+        try{
+            $txn    = Transaction::markComplete($this, $processor_id, $gateway_txn_id, $offline_txn_notes);
+            
+            if($txn){
+                $this->status       = INVOICE_STATUS_PAID;
+                $this->paid_date    = Carbon::now()->toDateTimeString();
+                $this->save();
+
+                // check if any cart is associated with this invoice
+                $params             = json_decode($this->params, true);
+                $cart_id            = $params["cart_id"];
+
+                $cart               = Cart::find($cart_id);
+                if($cart){
+                    // update Cart
+                    $cart->updateStatus(CART_STATUS_PAID, NO_GROUP, $txn);
+                }
+
+                return [
+                    "status"        => "success",
+                    "message"       => "Invoice has been successfully marked paid!",
+                ];
+            } else{
+                throw new \Exception();
+            }
+        } catch(\Exception $e){
+            // revert the changes
+            $this->status       = INVOICE_STATUS_DUE;
+            $this->paid_date    = "0000-00-00 00:00:00";
+            $this->save();
+            
+            return [
+                "status"        => "danger",
+                "message"       => "Something went wrong! Please try again.",
+            ];
+        }
+    }
 }

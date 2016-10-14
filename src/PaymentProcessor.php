@@ -63,9 +63,30 @@ class PaymentProcessor extends Model
     {
         // get the processor details
         $processor        = PaymentProcessor::where("published", 1)
-            ->whereNotIn("processor_type", ["offline", "paypal"])
+            ->whereNotIn("processor_type", ["offline", "paypal", "wallet"])
             ->first();
 
         return $processor;
+    }
+
+    public static function getOfflinePaymentProcessor()
+    {
+        // get the offline payment processor
+
+        $processor  = PaymentProcessor::where("processor_type", "offline")
+            ->where("published", 1)
+            ->first();
+
+        return $processor;
+    }
+
+    public static function getOnlinePaymentProcessors()
+    {
+        // get the processors
+        $processors        = PaymentProcessor::where("published", 1)
+            ->whereNotIn("processor_type", ["offline", "wallet"])
+            ->get();
+
+        return $processors;
     }
 }

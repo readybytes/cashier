@@ -75,4 +75,62 @@ class Transaction extends Model
 
         return $response;
     }
+
+    public static function markComplete($invoice, $processor_id, $gateway_txn_id, $offline_txn_notes)
+    {
+        try{
+            $txn        = Transaction::where("invoice_id", $invoice->id)
+                ->first();
+
+            if(!$txn){
+                $txn    = Transaction::createTransaction($invoice, $processor_id, null);
+            }
+
+            $txn->processor_id          = $processor_id;
+            $txn->payment_status        = TRANSACTION_STATUS_PAYMENT_COMPLETE;
+            $txn->message               = "Payment completed!";
+
+            $params                     = json_decode($txn->params, true);
+
+            if($gateway_txn_id){
+                $processor_type = PaymentProcessor::find($processor_id)->processor_type;
+                $helper         = "Laravel\\Cashier\\Helpers\\".ucfirst($processor_type)."Helper";
+                $helper_obj     = new $helper();
+
+                list($gateway_txn_id, $gateway_txn_fees, $txn_details)  =   $helper_obj->getTransactionDetails($gateway_txn_id);
+                $txn->gateway_txn_id    = $gateway_txn_id;
+                $txn->gateway_txn_fees  = $gateway_txn_fees;
+
+                $params["txn_details"]  = $txn_details;
+                $params["message"]      = "Payment remotely accepted and marked Paid by Admin";
+            }
+
+            if($offline_txn_notes){
+                $params["offline_txn_notes"]    = $offline_txn_notes;
+            }
+
+            $txn->params    = json_encode($params);
+
+            $txn->save();
+
+            return $txn;
+
+        } catch(\Exception $e){
+            // revert the status updated
+            if(isset($txn)){
+                $txn->payment_status    = TRANSACTION_STATUS_PAYMENT_PENDING;
+                $txn->message           = "";
+                $txn->gateway_txn_id    = "";
+                $txn->gateway_txn_fees  = 0;
+
+                if(isset($params) && isset($params["offline_txn_notes"])){
+                    unset($params["offline_txn_notes"]);
+                }
+
+                $txn->save();
+            }
+
+            return false;
+        }
+    }
 }

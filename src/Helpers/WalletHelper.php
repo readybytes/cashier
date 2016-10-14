@@ -65,10 +65,27 @@ class WalletHelper
                 "invoice_id" => $invoice->id,
             ];
         } catch(\Exception $e){
+
+            // delete the transaction
+            if(isset($txn)){
+                // revert the transaction in case it is already processed
+                if($txn->payment_status == TRANSACTION_STATUS_PAYMENT_COMPLETE){
+                    $this->requestRefund($txn, $invoice);
+                }
+                $txn->delete();
+            }
+
+            // delete the invoice
+            if(isset($invoice)){
+                $invoice->delete();
+            }
+
             return [
                 "status"  => false,
                 "message" => $e->getMessage(),
             ];
+
+            // TODO::Log the exception properly
         }
     }
 
@@ -124,11 +141,28 @@ class WalletHelper
                 "resource"          => $resource,
             ];
         } catch(\Exception $e){
+
+            // delete the transaction
+            if(isset($txn)){
+                // revert the transaction in case it is already processed
+                if($txn->payment_status == TRANSACTION_STATUS_PAYMENT_COMPLETE){
+                    $this->requestRefund($txn, $invoice);
+                }
+                $txn->delete();
+            }
+
+            // delete the invoice
+            if(isset($invoice)){
+                $invoice->delete();
+            }
+
             // prepare response
             $response   = [
                 "status"            => false,
                 "message"           => $e->getMessage(),
             ];
+
+            // TODO::Log the exception properly
         }
 
         return $response;
@@ -167,5 +201,10 @@ class WalletHelper
     public function isRefundSupported()
     {
         return $this->refund_support;
+    }
+
+    public function requestRefund($txn, $invoice)
+    {
+        // TODO::Code to refund the transaction
     }
 }
