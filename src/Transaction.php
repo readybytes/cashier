@@ -53,7 +53,7 @@ class Transaction extends Model
         }
 
         if($status == TRANSACTION_STATUS_PAYMENT_REFUND){
-            $this->message      = "Payment completed!";
+            $this->message      = "Payment refunded!";
             Event::fire(new TransactionRefunded($this));
         }
 

@@ -573,11 +573,12 @@ class StripeHelper
         // make refund
         try{
             $params = json_decode($txn->params, true);
-            $charge = $params["txn_details"]["response"]["id"];
+            $charge = $params["txn_details"]["balance_txn"]["source"];
 
             $response   = $this->__request_refund($charge);
 
-            if($response["status_code"] == 200 && $response["status"] == "succeeded"){
+            if($response["status_code"] == 200 &&
+                ($response["status"] == "succeeded" || $response["status"] == "pending")){
                 $params                     = json_decode($txn->params, true);
                 $params["refund_details"]   = $response["refund_response"];
 
@@ -588,7 +589,7 @@ class StripeHelper
 
                 // update the transaction status
                 $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_REFUND);
-
+                
                 // mark the invoice refunded
                 $invoice->markRefunded();
             } else{
@@ -597,10 +598,11 @@ class StripeHelper
 
         } catch(\Exception $e){
             $txn->message   = $e->getMessage();
-            $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_FAILED);
+            $txn->updateStatus(TRANSACTION_STATUS_REFUND_FAILED);
         }
 
-        return $invoice->status;
+        $status = $invoice->status == INVOICE_STATUS_REFUNDED ? true : false;
+        return $status;
     }
 
     public function getTransactionDetails($txn_id)
