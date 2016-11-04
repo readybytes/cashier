@@ -10,7 +10,7 @@ namespace Laravel\Cashier\Helpers;
 
 class PDFGenerator
 {
-    public static function generatePDF($html, $file_name)
+    public static function generatePDF($html, $file_name, $save_file = false, $site_alias = null, $dir_name = null)
     {
         $dompdf = new \DOMPDF();
         $dompdf->load_html($html);
@@ -19,8 +19,22 @@ class PDFGenerator
         $dompdf->set_paper("A4", "portrait");
         $dompdf->render();
 
-        $dompdf->stream($file_name, array("Attachment" => false));
+        if($save_file){
+            $file_path  = public_path()."/assets/".$site_alias."/$dir_name/";
+            // check if filepath exists or not
+            if(!file_exists($file_path)){
+                mkdir($file_path, 0777, true);
+            }
 
-        exit(0);
+            $output = $dompdf->output();
+            file_put_contents($file_path.$file_name, $output);
+            chmod($file_path.$file_name, 0777);
+
+            return $file_path.$file_name;
+        } else{
+            $dompdf->stream($file_name, array("Attachment" => false));
+
+            exit(0);
+        }
     }
 }

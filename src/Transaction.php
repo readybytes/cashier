@@ -44,6 +44,23 @@ class Transaction extends Model
         return $transaction;
     }
 
+    public static function createTransactionForRefund($txn)
+    {
+        $transaction                    = new Transaction();
+
+        $transaction->user_id           = $txn->user_id;
+        $transaction->invoice_id        = $txn->invoice_id;
+        $transaction->processor_id      = $txn->processor_id;
+        $transaction->amount            = -1 * $txn->amount;
+        $transaction->currency          = $txn->currency;
+        $transaction->payment_status    = TRANSACTION_STATUS_NONE;
+        $transaction->params            = $txn->params;
+
+        $transaction->save();
+
+        return $transaction;
+    }
+
     public function updateStatus($status)
     {
         $this->payment_status   = $status;

@@ -188,7 +188,7 @@ class Cart extends Model
 
     // get the items of cart
     public function getCartItems()
-    {
+    {                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
         $params     = json_decode($this->params, true);
         $plans      = $params["plans"];
 
@@ -220,7 +220,7 @@ class Cart extends Model
                 $item['title']          = ucwords($resource->title);
                 $item['tags']           = implode(",", $item["tags"]);
                 $item['plan_type']      = $plan->plan_type == PLAN_TYPE_PURCHASE ? "Download" : "Rent";
-                if($plan_details["time"] && $plan_details["time_unit"]){
+                if(isset($plan_details["time"]) && isset($plan_details["time_unit"])){
                     $item['duration']   = $plan_details["time"] . " " . $plan_details["time_unit"] . " Plan";
                 } else{
                     $item['duration']   = "Lifetime Plan";

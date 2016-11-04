@@ -19,11 +19,11 @@ class Invoice extends Model
 
     protected $connection   = "vod-tenant";
 
-    public static function createInvoice($user, $amount, $cart_id, $desc = null)
+    public static function createInvoice($user, $amount, $generate_serial_no, $cart_id, $desc = null)
     {
         $invoice                    = new Invoice();
 
-        $invoice->serial            = Invoice::generateInvoiceSerial();
+        $invoice->serial            = $generate_serial_no ? Invoice::generateInvoiceSerial() : null;
         $invoice->user_id           = $user->id;
         $invoice->total             = $amount;
         $invoice->currency          = config("vod.currency");
@@ -80,9 +80,7 @@ class Invoice extends Model
         $query          = Invoice::query();
 
         $query->select('payment_invoice.id', 'payment_invoice.serial', 'payment_invoice.total',
-            'payment_invoice.status', 'payment_invoice.paid_date', 'payment_processor.processor_type', 'users.email')
-            ->join('payment_transaction', 'payment_invoice.id', '=', 'payment_transaction.invoice_id')
-            ->join('payment_processor', 'payment_processor.id', '=', 'payment_transaction.processor_id')
+            'payment_invoice.status', 'payment_invoice.created_at', 'payment_invoice.paid_date', 'users.email')
             ->join('users', 'users.id', '=', 'payment_invoice.user_id');
 
         if($invoice_id){
@@ -90,6 +88,7 @@ class Invoice extends Model
         }
 
         $invoice_list   = $query->orderBy('payment_invoice.created_at', 'DESC')
+            ->groupBy('payment_invoice.id')
             ->paginate(20);
 
         return $invoice_list;
@@ -117,6 +116,10 @@ class Invoice extends Model
                     // update Cart
                     $cart->updateStatus(CART_STATUS_PAID, NO_GROUP, $txn);
                 }
+
+                // update postpaid bill status
+                PostpaidBills::where("payment_invoice_id", $this->id)
+                    ->update(["invoiced" => 1]);
 
                 return [
                     "status"        => "success",

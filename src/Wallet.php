@@ -50,29 +50,23 @@ class Wallet extends Model
         // update wallet balance
         $wallet->balance    = $wallet->balance + $amount;
 
-        // update invoice_ids
-        $invoice_ids        = self::getRechargeHistory($wallet);
+        // add this txn in wallet history
+        WalletHistory::addWalletHistory([
+            "wallet_id"             => $wallet->id,
+            "txn_type"              => WALLET_TXN_FOR_RECHARGE,
+            "amount"                => $amount, // should be positive
+            "billed"                => $wallet->credits_limit ? false : true,
+            "payment_invoice_id"    => $invoice_id
+        ]);
 
-        if(!in_array($invoice_id, $invoice_ids)){
-            $invoice_ids[]  = $invoice_id;
-        }
-
-        // update recharge_history
-        $wallet->recharge_history   = implode(",", $invoice_ids);
         $wallet->save();
     }
 
-    public static function getRechargeHistory($wallet)
+    public function getRechargeHistory()
     {
-        if(str_contains($wallet->recharge_history, ",")){
-            $invoice_ids    = explode(",", $wallet->recharge_history);
-        } else{
-            if($wallet->recharge_history){
-                $invoice_ids[]  = $wallet->recharge_history;
-            } else{
-                $invoice_ids    = [];
-            }
-        }
+        $invoice_ids    = WalletHistory::where("wallet_id", $this->id)
+            ->where("txn_type", WALLET_TXN_FOR_RECHARGE)
+            ->pluck("payment_invoice_id");
 
         return $invoice_ids;
     }

@@ -14,7 +14,10 @@ use Carbon\Carbon;
 use Laravel\Cashier\Cashier;
 use Laravel\Cashier\Invoice;
 use Laravel\Cashier\PaymentProcessor;
+use Laravel\Cashier\PostpaidBills;
+use Laravel\Cashier\Transaction;
 use Laravel\Cashier\Wallet;
+use Laravel\Cashier\WalletHistory;
 use League\Url\Url;
 use Stripe\BalanceTransaction;
 use Stripe\Card;
@@ -316,7 +319,7 @@ class StripeHelper
             $amount     = $request->get("amount");
 
             // create invoice
-            $invoice    = Invoice::createInvoice($user, $amount, $cart->id);
+            $invoice    = Invoice::createInvoice($user, $amount, true, $cart->id);
 
             // payment details
             $payment_details    = $this->__preparePaymentDetails($user, $request);
@@ -349,13 +352,16 @@ class StripeHelper
             if(isset($txn)){
                 // revert the transaction in case it is already processed
                 if($txn->payment_status == TRANSACTION_STATUS_PAYMENT_COMPLETE){
-                    $this->requestRefund($txn, $invoice);
+                    $this->requestRefund($txn, $invoice, true);
                 }
                 $txn->delete();
             }
 
             // delete the invoice
             if(isset($invoice)){
+                // delete the entries from wallet history
+                WalletHistory::where("payment_invoice_id", $invoice->id)->delete();
+
                 $invoice->delete();
             }
 
@@ -378,7 +384,7 @@ class StripeHelper
             $amount     = $request->get("amount");
 
             // create invoice
-            $invoice    = Invoice::createInvoice($user, $amount, 0, "Url Sharing for ".ucwords($resource_data["movie_title"]));
+            $invoice    = Invoice::createInvoice($user, $amount, true, 0, "Url Sharing for ".ucwords($resource_data["movie_title"]));
 
             // payment details
             $payment_details    = $this->__preparePaymentDetails($user, $request);
@@ -412,13 +418,80 @@ class StripeHelper
             if(isset($txn)){
                 // revert the transaction in case it is already processed
                 if($txn->payment_status == TRANSACTION_STATUS_PAYMENT_COMPLETE){
-                    $this->requestRefund($txn, $invoice);
+                    $this->requestRefund($txn, $invoice, true);
                 }
                 $txn->delete();
             }
 
             // delete the invoice
             if(isset($invoice)){
+                // delete the entries from wallet history
+                WalletHistory::where("payment_invoice_id", $invoice->id)->delete();
+
+                $invoice->delete();
+            }
+
+            // prepare response
+            $response   = [
+                "status"            => false,
+                "message"           => $e->getMessage(),
+            ];
+
+            // TODO::Log the exception properly
+        }
+
+        return $response;
+    }
+
+    public function payForPostpaidBill($request, $user, $invoice_id)
+    {
+        try{
+            // get invoice
+            $invoice    = Invoice::find($invoice_id);
+
+            // payment details
+            $payment_details    = $this->__preparePaymentDetails($user, $request);
+
+            // create transaction
+            $txn        = $invoice->createTransaction($this->processor->id, $payment_details);
+
+            // make payment
+            $status     = $this->processTransaction($invoice, $payment_details, $txn);
+
+            // check if invoice has been marked paid
+            if($status == INVOICE_STATUS_PAID){
+                // update postpaid bill status
+                PostpaidBills::where("payment_invoice_id", $invoice->id)
+                    ->update(["invoiced" => 1]);
+
+                $status = true;
+            } else{
+                $status = false;
+            }
+
+            // prepare response
+            $response   = [
+                "status"            => $status,
+                "message"           => $txn->message,
+                "payment_details"   => $payment_details,
+                "invoice_id"        => $invoice->id,
+            ];
+        } catch(\Exception $e){
+
+            // delete the transaction
+            if(isset($txn)){
+                // revert the transaction in case it is already processed
+                if($txn->payment_status == TRANSACTION_STATUS_PAYMENT_COMPLETE){
+                    $this->requestRefund($txn, $invoice, true);
+                }
+                $txn->delete();
+            }
+
+            // delete the invoice
+            if(isset($invoice)){
+                // delete the entries from wallet history
+                WalletHistory::where("payment_invoice_id", $invoice->id)->delete();
+
                 $invoice->delete();
             }
 
@@ -505,7 +578,7 @@ class StripeHelper
             $group_id   = $request->get("group_id");
 
             // create invoice
-            $invoice    = Invoice::createInvoice($user, $amount, 0, "Wallet Recharge");
+            $invoice    = Invoice::createInvoice($user, $amount, true, 0, "Wallet Recharge");
 
             // payment details
             $payment_details    = $this->__preparePaymentDetails($user, $request);
@@ -568,37 +641,47 @@ class StripeHelper
         return $this->refund_support;
     }
 
-    public function requestRefund($txn, $invoice)
+    public function requestRefund($txn, $invoice, $delete_txn = false)
     {
         // make refund
         try{
+            // get the charge details
             $params = json_decode($txn->params, true);
             $charge = $params["txn_details"]["balance_txn"]["source"];
+
+            // create a txn for refund
+            $refund_txn = Transaction::createTransactionForRefund($txn);
 
             $response   = $this->__request_refund($charge);
 
             if($response["status_code"] == 200 &&
                 ($response["status"] == "succeeded" || $response["status"] == "pending")){
-                $params                     = json_decode($txn->params, true);
+                $params                     = json_decode($refund_txn->params, true);
                 $params["refund_details"]   = $response["refund_response"];
 
                 // update the payment related details in transaction
-                $txn->update([
+                $refund_txn->update([
                     "params"            => json_encode($params),
                 ]);
 
                 // update the transaction status
-                $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_REFUND);
+                $refund_txn->updateStatus(TRANSACTION_STATUS_PAYMENT_REFUND);
                 
                 // mark the invoice refunded
                 $invoice->markRefunded();
+
+                // delete the txn if its a refund due to some exception
+                if($delete_txn){
+                    $refund_txn->delete();
+                }
             } else{
                 throw new \Exception($response["message"]);
             }
 
         } catch(\Exception $e){
-            $txn->message   = $e->getMessage();
-            $txn->updateStatus(TRANSACTION_STATUS_REFUND_FAILED);
+            if(isset($refund_txn)){
+                $refund_txn->delete();
+            }
         }
 
         $status = $invoice->status == INVOICE_STATUS_REFUNDED ? true : false;
