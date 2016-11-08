@@ -207,7 +207,7 @@ class Cart extends Model
                     $resource   = Movie::find($plan->resource_id);
                     $item['link']       = route("tenant::front::movie::index", [config("vod.active_subdomain"), $resource->slug, $resource->id]);
                     $item['tags']       = MovieTagMapper::getResourceTags([$resource->id]);
-                    $item['poster']     = asset('assets/image/'.config("vod.active_site").'/movie_banner/')."/{$resource->poster}";
+                    $item['poster']     = asset('assets/image/'.config("vod.active_site").'/movie_poster/')."/{$resource->poster}";
 
                 } else{
                     $resource   = Collection::find($plan->resource_id);
