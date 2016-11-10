@@ -207,14 +207,14 @@ class Cart extends Model
                     $resource   = Movie::find($plan->resource_id);
                     $item['link']       = route("tenant::front::movie::index", [config("vod.active_subdomain"), $resource->slug, $resource->id]);
                     $item['tags']       = MovieTagMapper::getResourceTags([$resource->id]);
-                    $item['poster']     = asset('assets/image/'.config("vod.active_site").'/movie_poster/')."/{$resource->poster}";
+                    $item['poster']     = $resource->poster_link ? $resource->poster_link : asset('assets/image/'.config("vod.active_site").'/movie_poster/')."/{$resource->poster}";
 
                 } else{
                     $resource   = Collection::find($plan->resource_id);
                     $item['link']       = route("tenant::front::collection::index", [config("vod.active_subdomain"), $resource->slug, $resource->id]);
                     $item['movie_ids']  = explode(",", $resource->collection_movie);
                     $item['tags']       = MovieTagMapper::getResourceTags($item['movie_ids']);
-                    $item['poster']     = asset('assets/image/'.config("vod.active_site").'/collection_poster/')."/$resource->poster";
+                    $item['poster']     = $resource->poster_link ? $resource->poster_link : asset('assets/image/'.config("vod.active_site").'/collection_poster/')."/$resource->poster";
                 }
 
                 $item['title']          = ucwords($resource->title);
