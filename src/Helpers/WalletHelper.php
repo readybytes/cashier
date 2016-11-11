@@ -317,7 +317,7 @@ class WalletHelper
         return $this->refund_support;
     }
 
-    public function requestRefund($txn, $invoice, $delete_txn)
+    public function requestRefund($txn, $invoice, $delete_txn = false)
     {
         // make refund
         try{
