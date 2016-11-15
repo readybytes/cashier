@@ -17,7 +17,7 @@
 </div>
 
 <div class="uk-form-row uk-margin-top" data-name="customer_email">
-    <label>Email associated with your Bitcoin Wallet</label>
+    <label>{{trans("front/user.bitcoin_email")}}</label>
     <div class="uk-form-controls">
         <input type="email" data-name="customer_email" name="customer_email" placeholder="Email" class="uk-form-width-medium">
     </div>

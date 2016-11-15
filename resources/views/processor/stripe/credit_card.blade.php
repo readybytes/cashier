@@ -50,19 +50,19 @@
 @if(count($payment_details))
     <div class="uk-alert uk-padding-remove">
         <div class="uk-form-controls">
-            <label class="uk-margin-large-right"><input type="radio" value="old" data-new-card="0" name="stripe-payment-option" checked> Use Saved Card</label>
-            <label class="uk-margin-large-left"><input type="radio" value="new" data-new-card="1" name="stripe-payment-option"> Use New Card</label>
+            <label class="uk-margin-large-right"><input type="radio" value="old" data-new-card="0" name="stripe-payment-option" checked> {{trans("front/user.use_saved_card")}}</label>
+            <label class="uk-margin-large-left"><input type="radio" value="new" data-new-card="1" name="stripe-payment-option"> {{trans("user.use_new_card")}}</label>
         </div>
     </div>
 @endif
 <div class="uk-form-row">
-    <label class="uk-form-label uk-h5">Card Number</label>
+    <label class="uk-form-label uk-h5">{{trans("front/user.card_number")}}</label>
     <div class="uk-form-controls">
-        <input type="text" data-name="number" value="{{@$payment_details["number"]}}" placeholder="Card Number" class="uk-form-width-medium" @if(count($payment_details)) readonly @endif>
+        <input type="text" data-name="number" value="{{@$payment_details["number"]}}" placeholder="{{trans("front/user.card_number")}}" class="uk-form-width-medium" @if(count($payment_details)) readonly @endif>
     </div>
 </div>
 <div class="uk-form-row uk-margin-top">
-    <label class="uk-form-label uk-h5">Expiry Month / Expiry Year</label>
+    <label class="uk-form-label uk-h5">{{trans("front/user.expiry_month")}} / {{trans("front/user.expiry_year")}}</label>
     <div class="uk-form-controls">
         <select name="exp_month" data-name="exp_month" class="vod-processor-select" id="payment-processor-stripe-card-expiry-month" @if(count($payment_details)) disabled @endif>
             <option value="" selected="selected" disabled>MM </option>
@@ -90,13 +90,13 @@
     </div>
 </div>
 <div class="uk-form-row uk-margin-top" data-name="cvc_block" @if(count($payment_details)) style="display: none;" @endif>
-    <label class="uk-form-label uk-h5">CVV</label>
+    <label class="uk-form-label uk-h5">{{trans("front/user.cvv")}}</label>
     <div class="uk-form-controls">
-        <input type="text" data-name="cvc" name="cvc" placeholder="CVV" class="uk-form-width-medium">
+        <input type="text" data-name="cvc" name="cvc" placeholder="{{trans("front/user.cvv")}}" class="uk-form-width-medium">
     </div>
 </div>
 <div class="uk-form-row uk-margin-top" data-name="save_payment_details" @if(count($payment_details)) style="display: none;" @endif>
     <input type="checkbox" class="uk-margin-right" name="save_payment_details">
-    <label><small>Save this card for faster checkout</small></label>
+    <label><small>{{trans("front/user.save_this_card")}}</small></label>
 </div>
 <input type='hidden' name='stripeToken' value='{{@$payment_details["token"]}}' />

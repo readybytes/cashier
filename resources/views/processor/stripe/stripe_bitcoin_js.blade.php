@@ -20,7 +20,7 @@
             if(!form_submitted){
                 var email   = $(this).find("input[name='customer_email']").val();
                 if(!email || !validateEmail(email)){
-                    $(".payment-errors").html("Enter valid email address").show();
+                    $(".payment-errors").html("{{trans("front/user.email_error")}}").show();
                     load_vod_loader = false;
                     return false;
                 } else{

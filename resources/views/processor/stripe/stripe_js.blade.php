@@ -41,15 +41,15 @@
             var errors      = [];
 
             if(!Stripe.card.validateCardNumber(number)){
-                errors.push("Invalid Card Number");
+                errors.push("{{trans("front/user.invalid_card_number")}}");
             }
 
             if(!Stripe.card.validateExpiry(exp_month, exp_year)){
-                errors.push("Invalid Expiry");
+                errors.push("{{trans("front/user.invalid_expiry")}}");
             }
 
             if(!Stripe.card.validateCVC(cvc)){
-                errors.push("Invalid CVV");
+                errors.push("{{trans("front/user.invalid_cvv")}}");
             }
 
             if(errors.length){
@@ -72,11 +72,11 @@
         function validateToken(number, cvc, exp_month, exp_year) {
             var errors      = [];
             if(number != "{{@$payment_details["number"]}}"){
-                errors.push("Invalid Card Number");
+                errors.push("{{trans("front/user.invalid_card_number")}}");
             }
 
             if(!Stripe.card.validateExpiry(exp_month, exp_year)){
-                errors.push("The card is expired. Please update or use another card!");
+                errors.push("{{trans("front/user.card_error")}}");
             }
 
             if(errors.length){

@@ -18,6 +18,8 @@ class PaymentProcessor extends Model
 
     protected $_permits = null;
 
+    protected $guarded = array();
+
     public function checkPermission($object, $action, $permissions)
     {
         if($permissions == 1){
