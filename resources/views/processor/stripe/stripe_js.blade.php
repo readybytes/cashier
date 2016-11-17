@@ -71,7 +71,7 @@
 
         function validateToken(number, cvc, exp_month, exp_year) {
             var errors      = [];
-            if(number != "{{@$payment_details["number"]}}"){
+            if(number == ""){
                 errors.push("{{trans("front/user.invalid_card_number")}}");
             }
 

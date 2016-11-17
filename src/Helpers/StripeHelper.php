@@ -55,6 +55,9 @@ class StripeHelper
         }
 
         if($method == "card"){
+            // get the card usage
+            $card_usage = $request->get("card_usage");
+
             // get the token
             $token      = $request->get("stripeToken");
 
@@ -62,7 +65,7 @@ class StripeHelper
             $option     = $request->get("stripe-payment-option", "new");
 
             // get the payment details stored with us
-            $card_data  = $this->getUserPaymentDetails($user->id, true);
+            $card_data  = $this->getUserPaymentDetails($user->id, $card_usage, true);
 
             // cases:
             // 1. We don't have any saved card's details
@@ -81,7 +84,7 @@ class StripeHelper
                         $customer_id         = $card_data["customer_id"];
                         $this->__updateCardDetails($customer_id, $token);
                     } else{
-                        $card_data["token"]         = $token;
+                        $card_data["token"]  = $token;
                     }
                 } else{
                     // do nothing as user has opted to use existing saved card
@@ -267,7 +270,7 @@ class StripeHelper
         return $config;
     }
 
-    public function getUserPaymentDetails($user_id, $for_payment = false)
+    public function getUserPaymentDetails($user_id, $card_usage = "self", $for_payment = false)
     {
         $wallet = Wallet::where("user_id", $user_id)
             ->where("group_id", 0)
@@ -280,13 +283,13 @@ class StripeHelper
             if(isset($payment_details[$this->processor->processor_type])){
                 $stripe_details = $payment_details[$this->processor->processor_type];
 
-                if(!isset($stripe_details["customer_id"])){
+                if(!isset($stripe_details[$card_usage]["customer_id"])){
                     return [];
                 }
-                $customer_id    = $stripe_details["customer_id"];
+                $customer_id    = $stripe_details[$card_usage]["customer_id"];
 
                 // set customer_id in card_details
-                $card_details["customer_id"] = $stripe_details["customer_id"];
+                $card_details["customer_id"] = $stripe_details[$card_usage]["customer_id"];
 
                 // if we are here just to get the customer id for making payment, then return now
                 if($for_payment){

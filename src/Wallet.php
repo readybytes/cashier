@@ -16,7 +16,7 @@ class Wallet extends Model
 
     protected $connection   = "vod-tenant";
 
-    public static function updatePaymentDetails($user_id, $processor_type, $payment_data)
+    public static function updatePaymentDetails($user_id, $processor_type, $payment_data, $card_usage)
     {
         // update the payment details of user
         $wallet     = Wallet::where("user_id", $user_id)
@@ -28,9 +28,9 @@ class Wallet extends Model
             $wallet->user_id    = $user_id;
             $wallet->group_id   = 0;
         }
-        $payment_details                    = json_decode($wallet->payment_details, true);
-        $payment_details[$processor_type]   = $payment_data;
-        $wallet->payment_details            = json_encode($payment_details);
+        $payment_details                                = json_decode($wallet->payment_details, true);
+        $payment_details[$processor_type][$card_usage]  = $payment_data;
+        $wallet->payment_details                        = json_encode($payment_details);
         $wallet->save();
     }
 
