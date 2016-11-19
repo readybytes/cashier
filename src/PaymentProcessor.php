@@ -91,4 +91,14 @@ class PaymentProcessor extends Model
 
         return $processors;
     }
+
+    public static function getPayPalPaymentProcessors()
+    {
+        // get the processor details
+        $processor = PaymentProcessor::where("published", 1)
+            ->whereNotIn("processor_type", ["offline", "stripe", "wallet"])
+            ->first();
+
+        return $processor;
+    }
 }
