@@ -17,4 +17,5 @@
 <input type="hidden" name="rm" value="2">
 <input type="hidden" name="no_note" value="1">
 <input type="hidden" name="invoice">
+<input type="hidden" name="currency_code" value="{{config("vod.active_currency")}}">
 
