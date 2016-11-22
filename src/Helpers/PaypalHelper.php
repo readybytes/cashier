@@ -470,7 +470,7 @@ class PayPalHelper
         // check if invoice has been marked paid
         if($status == INVOICE_STATUS_PAID){
             $resource   = ResourceAllocated::allocateAnonymousAccess($resource_data);
-            RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id);
+            /*RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id);*/
             $status = true;
         } else{
             $status = false;
