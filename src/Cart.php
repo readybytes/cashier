@@ -221,7 +221,7 @@ class Cart extends Model
                 $item['tags']           = implode(",", $item["tags"]);
                 $item['plan_type']      = $plan->plan_type == PLAN_TYPE_PURCHASE ? trans("front/cart.download") : trans("front/cart.rent");
                 $item['plan_type_id']   = $plan->plan_type;
-                
+
                 if(isset($plan_details["time"]) && isset($plan_details["time_unit"])){
                     $item['duration']   = $plan_details["time"] . " " . $plan_details["time_unit"] . " " . trans("front/cart.plan");
                 } else{
@@ -367,7 +367,7 @@ class Cart extends Model
                 $this->params           = json_encode($params);
                 $this->save();
 
-                Event::fire(new ResourceAllocated($txn, $resources));
+                /*Event::fire(new ResourceAllocated($txn, $resources));*/
             }
         } catch(\Exception $e){
             // revert cart status
