@@ -107,7 +107,7 @@ class PayPalHelper
             $amount     = $request['amount'];
 
             // create invoice
-            $invoice    = Invoice::createInvoice($user, $amount, true, $cart->id);
+            $invoice    = Invoice::createInvoice($user, NO_GROUP, $amount, true, $cart->id);
 
             // create transaction
             $txn        = $invoice->createTransaction($processor->id, $request);
@@ -311,7 +311,7 @@ class PayPalHelper
             $amount     = $request['amount'];
 
             // create invoice
-            $invoice    = Invoice::createInvoice($user, $amount, true, 0, "Wallet Recharge");
+            $invoice    = Invoice::createInvoice($user, $request['group_id'], $amount, true, 0, "Wallet Recharge");
 
             // payment details
             $payment_details    = $this->__preparePaymentDetails($user, $request);
@@ -401,7 +401,7 @@ class PayPalHelper
             $amount     = $request['amount'];
 
             // create invoice
-            $invoice    = Invoice::createInvoice($user, $amount, true, 0, "Url Sharing for ".ucwords($resource_data["movie_title"]));
+            $invoice    = Invoice::createInvoice($user, $resource_data['group_id'], $amount, true, 0, "Url Sharing for ".ucwords($resource_data["movie_title"]));
 
             // payment details
             $payment_details             = $this->__preparePaymentDetails($user, $request);
@@ -470,7 +470,7 @@ class PayPalHelper
         // check if invoice has been marked paid
         if($status == INVOICE_STATUS_PAID){
             $resource   = ResourceAllocated::allocateAnonymousAccess($resource_data);
-            /*RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id);*/
+            RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id);
             $status = true;
         } else{
             $status = false;

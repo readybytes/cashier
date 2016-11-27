@@ -21,7 +21,7 @@ class PaymentBypassHelper
             $amount     = 0;
 
             // create invoice
-            $invoice    = Invoice::createInvoice($user, $amount, false, $cart->id);
+            $invoice    = Invoice::createInvoice($user, NO_GROUP, $amount, false, $cart->id);
 
             // create transaction
             $txn        = $invoice->createTransaction(PROCESSOR_NONE, "This is a transaction for free subscription");

@@ -322,7 +322,7 @@ class StripeHelper
             $amount     = $request->get("amount");
 
             // create invoice
-            $invoice    = Invoice::createInvoice($user, $amount, true, $cart->id);
+            $invoice    = Invoice::createInvoice($user, NO_GROUP, $amount, true, $cart->id);
 
             // payment details
             $payment_details    = $this->__preparePaymentDetails($user, $request);
@@ -387,7 +387,7 @@ class StripeHelper
             $amount     = $request->get("amount");
 
             // create invoice
-            $invoice    = Invoice::createInvoice($user, $amount, true, 0, "Url Sharing for ".ucwords($resource_data["movie_title"]));
+            $invoice    = Invoice::createInvoice($user, $request->get("group_id"), $amount, true, 0, "Url Sharing for ".ucwords($resource_data["movie_title"]));
 
             // payment details
             $payment_details    = $this->__preparePaymentDetails($user, $request);
@@ -401,7 +401,7 @@ class StripeHelper
             // check if invoice has been marked paid
             if($status == INVOICE_STATUS_PAID){
                 $resource   = ResourceAllocated::allocateAnonymousAccess($resource_data);
-                /*RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id);*/
+                RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id);
                 $status = true;
             } else{
                 $status = false;
@@ -581,7 +581,7 @@ class StripeHelper
             $group_id   = $request->get("group_id");
 
             // create invoice
-            $invoice    = Invoice::createInvoice($user, $amount, true, 0, "Wallet Recharge");
+            $invoice    = Invoice::createInvoice($user, $group_id, $amount, true, 0, "Wallet Recharge");
 
             // payment details
             $payment_details    = $this->__preparePaymentDetails($user, $request);

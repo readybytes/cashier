@@ -367,7 +367,7 @@ class Cart extends Model
                 $this->params           = json_encode($params);
                 $this->save();
 
-                /*Event::fire(new ResourceAllocated($txn, $resources));*/
+                Event::fire(new ResourceAllocated($txn, $resources));
             }
         } catch(\Exception $e){
             // revert cart status

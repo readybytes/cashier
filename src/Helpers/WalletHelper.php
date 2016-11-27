@@ -51,7 +51,7 @@ class WalletHelper
             $payment_details["group_id"]    = $group_id;
 
             // create invoice
-            $invoice = Invoice::createInvoice($user, $amount, false, $cart->id);
+            $invoice = Invoice::createInvoice($user, $group_id, $amount, false, $cart->id);
 
             // create transaction
             $txn = $invoice->createTransaction(PROCESSOR_WALLET, $payment_details);
@@ -123,7 +123,7 @@ class WalletHelper
             $payment_details["group_id"]    = $group_id;
 
             // create invoice
-            $invoice    = Invoice::createInvoice($user, $amount, false, 0, "Url Sharing for ".ucwords($resource_data["movie_title"]));
+            $invoice    = Invoice::createInvoice($user, $group_id, $amount, false, 0, "Url Sharing for ".ucwords($resource_data["movie_title"]));
 
             // create transaction
             $txn = $invoice->createTransaction(PROCESSOR_WALLET, $payment_details);
@@ -134,7 +134,7 @@ class WalletHelper
             // check if invoice has been marked paid
             if($status == INVOICE_STATUS_PAID){
                 $resource   = ResourceAllocated::allocateAnonymousAccess($resource_data);
-                /*RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id);*/
+                RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id);
                 $status = true;
             } else{
                 $status = false;

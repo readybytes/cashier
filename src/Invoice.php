@@ -19,12 +19,13 @@ class Invoice extends Model
 
     protected $connection   = "vod-tenant";
 
-    public static function createInvoice($user, $amount, $generate_serial_no, $cart_id, $desc = null)
+    public static function createInvoice($user, $group_id, $amount, $generate_serial_no, $cart_id, $desc = null)
     {
         $invoice                    = new Invoice();
 
         $invoice->serial            = $generate_serial_no ? Invoice::generateInvoiceSerial() : null;
         $invoice->user_id           = $user->id;
+        $invoice->group_id          = $group_id;
         $invoice->total             = $amount;
         $invoice->currency          = config("vod.currency");
         $invoice->status            = INVOICE_STATUS_NONE;
@@ -139,5 +140,26 @@ class Invoice extends Model
                 "message"       => "Something went wrong! Please try again.",
             ];
         }
+    }
+
+    public static function getUserInvoice($user_id = 0, $group_id = 0, $page = null)
+    {
+        $invoice = Invoice::where('user_id',$user_id)
+            ->where('group_id',$group_id)
+            ->where('status',INVOICE_STATUS_PAID)
+            ->paginate($perPage = 10, $columns = ['*'], $pageName = 'page', $page);
+
+        return $invoice;
+    }
+
+    public static function getGroupInvoice($group_id = 0, $page = null)
+    {
+        $invoice = Invoice::select('payment_invoice.id', 'payment_invoice.user_id', 'payment_invoice.group_id', 'payment_invoice.serial', 'payment_invoice.paid_date', 'payment_invoice.status', 'users.id', 'users.email')
+            ->join('users', 'payment_invoice.user_id', '=', 'users.id')
+            ->where('payment_invoice.group_id', $group_id)
+            ->where('payment_invoice.status', INVOICE_STATUS_PAID)
+            ->paginate($perPage = 10, $columns = ['*'], $pageName = 'page', $page);
+
+        return $invoice;
     }
 }
