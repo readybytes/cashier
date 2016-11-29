@@ -20,7 +20,7 @@ class PDFGenerator
         $dompdf->render();
 
         if($save_file){
-            $file_path  = public_path()."/assets/".$site_alias."/$dir_name/";
+            $file_path  = public_path()."/shared/".$site_alias."/$dir_name/";
             // check if filepath exists or not
             if(!file_exists($file_path)){
                 mkdir($file_path, 0777, true);
