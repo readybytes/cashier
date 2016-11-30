@@ -154,7 +154,7 @@ class Invoice extends Model
 
     public static function getGroupInvoice($group_id = 0, $page = null)
     {
-        $invoice = Invoice::select('payment_invoice.id', 'payment_invoice.user_id', 'payment_invoice.group_id', 'payment_invoice.serial', 'payment_invoice.paid_date', 'payment_invoice.status', 'users.id', 'users.email')
+        $invoice = Invoice::select('payment_invoice.id', 'payment_invoice.user_id', 'payment_invoice.group_id', 'payment_invoice.serial', 'payment_invoice.paid_date', 'payment_invoice.status', 'users.email')
             ->join('users', 'payment_invoice.user_id', '=', 'users.id')
             ->where('payment_invoice.group_id', $group_id)
             ->where('payment_invoice.status', INVOICE_STATUS_PAID)

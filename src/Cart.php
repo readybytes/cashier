@@ -253,7 +253,7 @@ class Cart extends Model
                 $resource           = \App\vod\model\ResourceAllocated::find($resource_id);
                 if($resource){
                     $allocation_date    = Carbon::createFromFormat('Y-n-j G:i:s', $resource->allocation_date);
-                    $expiration_date    = Carbon::createFromFormat('Y-n-j G:i:s', $resource->allocation_date);
+                    $expiration_date    = Carbon::createFromFormat('Y-n-j G:i:s', $resource->expiration_date);
 
                     // if resource is a movie get that movie
                     if($resource->movie_id){
@@ -268,7 +268,7 @@ class Cart extends Model
                     if($resource->status == SUBSCRIPTION_STATUS_LIFETIME){
                         $item['duration']   = "-";
                     } else{
-                        $diff               = $expiration_date->diffInDays($allocation_date);
+                        $diff               = $expiration_date->diffInDays($allocation_date) + 1;
                         $item['duration']   = $diff. " Days Plan";
                     }
                     $item['title']          = ucwords($resource_data->title);
