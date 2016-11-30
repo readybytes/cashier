@@ -26,7 +26,7 @@ class Invoice extends Model
         $invoice->invoice_serial    = $generate_serial_no ? Invoice::generateInvoiceSerial() : null;
         $invoice->proforma_serial   = !$generate_serial_no ? Invoice::generateProformaSerial() : null;
         $invoice->user_id           = $user->id;
-        $invoice->group_id          = $group_id;
+        $invoice->group_id          = $group_id ? $group_id : NO_GROUP;
         $invoice->total             = $amount;
         $invoice->currency          = config("vod.currency");
         $invoice->status            = INVOICE_STATUS_NONE;
