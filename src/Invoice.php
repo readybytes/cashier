@@ -23,7 +23,8 @@ class Invoice extends Model
     {
         $invoice                    = new Invoice();
 
-        $invoice->serial            = $generate_serial_no ? Invoice::generateInvoiceSerial() : null;
+        $invoice->invoice_serial    = $generate_serial_no ? Invoice::generateInvoiceSerial() : null;
+        $invoice->proforma_serial   = !$generate_serial_no ? Invoice::generateProformaSerial() : null;
         $invoice->user_id           = $user->id;
         $invoice->group_id          = $group_id;
         $invoice->total             = $amount;
@@ -48,7 +49,17 @@ class Invoice extends Model
 
     public static function generateInvoiceSerial()
     {
-        $last_serial        = Invoice::max('serial');
+        $last_serial        = Invoice::max('invoice_serial');
+        if($last_serial){
+            return $last_serial + 1;
+        } else{
+            return 1;
+        }
+    }
+
+    public static function generateProformaSerial()
+    {
+        $last_serial        = Invoice::max('proforma_serial');
         if($last_serial){
             return $last_serial + 1;
         } else{
@@ -80,8 +91,8 @@ class Invoice extends Model
     {
         $query          = Invoice::query();
 
-        $query->select('payment_invoice.id', 'payment_invoice.serial', 'payment_invoice.total',
-            'payment_invoice.status', 'payment_invoice.created_at', 'payment_invoice.paid_date', 'users.email')
+        $query->select('payment_invoice.id', 'payment_invoice.invoice_serial', 'payment_invoice.proforma_serial',
+            'payment_invoice.total', 'payment_invoice.status', 'payment_invoice.created_at', 'payment_invoice.paid_date', 'users.email')
             ->join('users', 'users.id', '=', 'payment_invoice.user_id');
 
         if($invoice_id){
@@ -154,7 +165,7 @@ class Invoice extends Model
 
     public static function getGroupInvoice($group_id = 0, $page = null)
     {
-        $invoice = Invoice::select('payment_invoice.id', 'payment_invoice.user_id', 'payment_invoice.group_id', 'payment_invoice.serial', 'payment_invoice.paid_date', 'payment_invoice.status', 'users.email')
+        $invoice = Invoice::select('payment_invoice.id', 'payment_invoice.user_id', 'payment_invoice.group_id', 'payment_invoice.invoice_serial', 'payment_invoice.proforma_serial', 'payment_invoice.paid_date', 'payment_invoice.total', 'payment_invoice.status', 'users.email')
             ->join('users', 'payment_invoice.user_id', '=', 'users.id')
             ->where('payment_invoice.group_id', $group_id)
             ->where('payment_invoice.status', INVOICE_STATUS_PAID)
