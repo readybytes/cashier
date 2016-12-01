@@ -664,6 +664,7 @@ class StripeHelper
 
                 // update the payment related details in transaction
                 $refund_txn->update([
+                    "gateway_txn_id"    => $response["refund_response"]["balance_transaction"],
                     "params"            => json_encode($params),
                 ]);
 

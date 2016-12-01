@@ -51,6 +51,7 @@ class Transaction extends Model
         $transaction->user_id           = $txn->user_id;
         $transaction->invoice_id        = $txn->invoice_id;
         $transaction->processor_id      = $txn->processor_id;
+        $transaction->gateway_txn_fees  = -1 * $txn->gateway_txn_fees;
         $transaction->amount            = -1 * $txn->amount;
         $transaction->currency          = $txn->currency;
         $transaction->payment_status    = TRANSACTION_STATUS_NONE;

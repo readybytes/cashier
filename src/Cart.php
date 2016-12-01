@@ -268,7 +268,7 @@ class Cart extends Model
                     if($resource->status == SUBSCRIPTION_STATUS_LIFETIME){
                         $item['duration']   = "-";
                     } else{
-                        $diff               = $expiration_date->diffInDays($allocation_date) + 1;
+                        $diff               = $expiration_date->diffInDays($allocation_date);
                         $item['duration']   = $diff. " Days Plan";
                     }
                     $item['title']          = ucwords($resource_data->title);
