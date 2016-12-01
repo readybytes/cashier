@@ -241,7 +241,7 @@ class PayPalHelper
 
                 // update the payment related details in transaction
                 $refund_txn->update([
-                    "gateway_txn_id"   => $response["TRANSACTIONID"],
+                    "gateway_txn_id"    => $response["REFUNDTRANSACTIONID"],
                     "params"            => json_encode($params),
                 ]);
 
