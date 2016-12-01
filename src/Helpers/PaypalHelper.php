@@ -113,32 +113,32 @@ class PayPalHelper
 
             $response   = $this->__getTransactionDetails($payment_details['gateway_txn_id'], $sandbox, $processor);
 
-            if($response['ACK'] == "Success"){
+            if($response['ACK'] == "Success") {
                 $payment_details['gateway_txn_fees'] = $response['FEEAMT'];
-
-                $status     = $this->processTransaction($invoice, $txn, $payment_details, $response);
-
-                // check if invoice has been marked paid
-                if($status == INVOICE_STATUS_PAID){
-                    // update Cart
-
-                    $params   = json_decode($invoice->params, true);
-
-                    $cart     = Cart::where('id',$params['cart_id'])->first();
-                    $cart->updateStatus(CART_STATUS_PAID, NO_GROUP, $txn);
-                    $status = true;
-                } else{
-                    $status = false;
-                }
-
-                // prepare response
-                $response   = [
-                    "status"            => $status,
-                    "message"           => $txn->message,
-                    "payment_details"   => true,
-                    "invoice_id"        => $invoice->id,
-                ];
             }
+            $status     = $this->processTransaction($invoice, $txn, $payment_details, $response);
+
+            // check if invoice has been marked paid
+            if($status == INVOICE_STATUS_PAID){
+                // update Cart
+
+                $params   = json_decode($invoice->params, true);
+
+                $cart     = Cart::where('id',$params['cart_id'])->first();
+                $cart->updateStatus(CART_STATUS_PAID, NO_GROUP, $txn);
+                $status = true;
+            } else{
+                $status = false;
+            }
+
+            // prepare response
+            $response   = [
+                "status"            => $status,
+                "message"           => $txn->message,
+                "payment_details"   => true,
+                "invoice_id"        => $invoice->id,
+            ];
+
 
         } catch(\Exception $e){
 
@@ -163,7 +163,7 @@ class PayPalHelper
 
             // update the payment related details in transaction
             $txn->update([
-                "gateway_txn_fees"  => $payment_details["gateway_txn_fees"],
+                "gateway_txn_fees"  => $payment_details["gateway_txn_fees"] ? $payment_details["gateway_txn_fees"] : 0,
                 "gateway_txn_id"    => $payment_details["gateway_txn_id"],
                 "params"            => json_encode($params),
             ]);
@@ -361,32 +361,34 @@ class PayPalHelper
 
         $response   = $this->__getTransactionDetails($payment_details['gateway_txn_id'], $sandbox, $processor);
 
-        if($response['ACK'] == "Success"){
-            // make payment
-            $status     = $this->processTransaction($invoice, $txn, $payment_details, $response);
-
-            // check if invoice has been marked paid
-            if($status == INVOICE_STATUS_PAID){
-                // update Wallet Balance
-                $user_id    = $group_id ? 0 : $user->id;
-
-                Wallet::updateWalletAfterRecharge($user_id, $group_id, $amount, $invoice->id);
-                $status = true;
-            } else{
-                $status = false;
-            }
-
-            // prepare response
-            $response   = [
-                "status"            => $status,
-                "message"           => $txn->message,
-                "payment_details"   => $payment_details,
-                "group_id"          => $group_id,
-                "processor_type"    => $processor->processor_type,
-            ];
-
-            return $response;
+        if($response['ACK'] == "Success") {
+            $payment_details['gateway_txn_fees'] = $response['FEEAMT'];
         }
+
+        // make payment
+        $status     = $this->processTransaction($invoice, $txn, $payment_details, $response);
+
+        // check if invoice has been marked paid
+        if($status == INVOICE_STATUS_PAID){
+            // update Wallet Balance
+            $user_id    = $group_id ? 0 : $user->id;
+
+            Wallet::updateWalletAfterRecharge($user_id, $group_id, $amount, $invoice->id);
+            $status = true;
+        } else{
+            $status = false;
+        }
+
+        // prepare response
+        $response   = [
+            "status"            => $status,
+            "message"           => $txn->message,
+            "payment_details"   => $payment_details,
+            "group_id"          => $group_id,
+            "processor_type"    => $processor->processor_type,
+        ];
+
+        return $response;
     }
 
     public function payForTokenBasedUrl($request, $user, $resource_data)
@@ -470,33 +472,35 @@ class PayPalHelper
 
         $response   = $this->__getTransactionDetails($payment_details['gateway_txn_id'], $sandbox, $processor);
 
-        if($response['ACK'] == "Success"){
-            // make payment
-            $status     = $this->processTransaction($invoice, $txn, $payment_details, $response);
-
-            // check if invoice has been marked paid
-            if($status == INVOICE_STATUS_PAID){
-                $resource   = ResourceAllocated::allocateAnonymousAccess($resource_data);
-                RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id);
-                $status = true;
-            } else{
-                $status = false;
-            }
-
-            // prepare response
-            $response   = [
-                "status"            => $status,
-                "message"           => $txn->message,
-                "payment_details"   => $payment_details,
-                "invoice_id"        => $invoice->id,
-                "resource"          => $resource,
-                "processor_type"    => $processor->processor_type,
-                "movie_id"          => $resource_data["movie_id"],
-                "group_id"          => $resource_data["group_id"],
-            ];
-
-            return $response;
+        if($response['ACK'] == "Success") {
+            $payment_details['gateway_txn_fees'] = $response['FEEAMT'];
         }
+
+        // make payment
+        $status     = $this->processTransaction($invoice, $txn, $payment_details, $response);
+
+        // check if invoice has been marked paid
+        if($status == INVOICE_STATUS_PAID){
+            $resource   = ResourceAllocated::allocateAnonymousAccess($resource_data);
+            RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id);
+            $status = true;
+        } else{
+            $status = false;
+        }
+
+        // prepare response
+        $response   = [
+            "status"            => $status,
+            "message"           => $txn->message,
+            "payment_details"   => $payment_details,
+            "invoice_id"        => $invoice->id,
+            "resource"          => $resource,
+            "processor_type"    => $processor->processor_type,
+            "movie_id"          => $resource_data["movie_id"],
+            "group_id"          => $resource_data["group_id"],
+        ];
+
+        return $response;
     }
 
     public function payForPostpaidBill($request, $user, $invoice_id)
@@ -569,29 +573,31 @@ class PayPalHelper
 
         $response   = $this->__getTransactionDetails($payment_details['gateway_txn_id'], $sandbox, $processor);
 
-        if($response['ACK'] == "Success"){
-            $status     = $this->processTransaction($invoice, $txn, $payment_details, $response);
-
-            // check if invoice has been marked paid
-            if($status == INVOICE_STATUS_PAID){
-                // update postpaid bill status
-                PostpaidBills::where("payment_invoice_id", $invoice->id)
-                    ->update(["invoiced" => 1]);
-
-                $status = true;
-            } else{
-                $status = false;
-            }
-
-            // prepare response
-            $response   = [
-                "status"            => $status,
-                "message"           => $txn->message,
-                "payment_details"   => $payment_details,
-                "invoice_id"        => $invoice->id,
-            ];
-
-            return $response;
+        if($response['ACK'] == "Success") {
+            $payment_details['gateway_txn_fees'] = $response['FEEAMT'];
         }
+
+        $status     = $this->processTransaction($invoice, $txn, $payment_details, $response);
+
+        // check if invoice has been marked paid
+        if($status == INVOICE_STATUS_PAID){
+            // update postpaid bill status
+            PostpaidBills::where("payment_invoice_id", $invoice->id)
+                ->update(["invoiced" => 1]);
+
+            $status = true;
+        } else{
+            $status = false;
+        }
+
+        // prepare response
+        $response   = [
+            "status"            => $status,
+            "message"           => $txn->message,
+            "payment_details"   => $payment_details,
+            "invoice_id"        => $invoice->id,
+        ];
+
+        return $response;
     }
 }
