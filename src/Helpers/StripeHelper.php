@@ -597,7 +597,7 @@ class StripeHelper
                 // update Wallet Balance
                 $user_id    = $group_id ? 0 : $user->id;
 
-                Wallet::updateWalletAfterRecharge($user_id, $group_id, $amount, $invoice->id);
+                Wallet::updateWalletAfterRecharge($user_id, $group_id, $amount, $invoice->id, $txn->gateway_txn_fees);
                 $status = true;
             } else{
                 $status = false;

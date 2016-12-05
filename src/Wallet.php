@@ -34,7 +34,7 @@ class Wallet extends Model
         $wallet->save();
     }
 
-    public static function updateWalletAfterRecharge($user_id, $group_id, $amount, $invoice_id)
+    public static function updateWalletAfterRecharge($user_id, $group_id, $amount, $invoice_id, $gateway_txn_fees = 0)
     {
         $wallet = Wallet::where("user_id", $user_id)
             ->where("group_id", $group_id)
@@ -48,7 +48,8 @@ class Wallet extends Model
         }
 
         // update wallet balance
-        $wallet->balance    = $wallet->balance + $amount;
+        $wallet->balance                = $wallet->balance + $amount;
+        $wallet->gateway_fees_balance   = $wallet->gateway_fees_balance + $gateway_txn_fees;
 
         // add this txn in wallet history
         WalletHistory::addWalletHistory([

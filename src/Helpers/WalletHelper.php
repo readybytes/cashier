@@ -244,15 +244,23 @@ class WalletHelper
     {
         // make payment
         try {
+            // find out if its prepaid purchase or postpaid purchase
+            $g_wallet   = $group ? Wallet::getWallet(0, $group->id) : null;
+
+            if($g_wallet && $g_wallet->credits_limit){
+                // do nothing, gateway fees would be handled during post-payment
+            } else{
+                $gateway_txn_fees       = $this->getTxnFees($g_wallet? $g_wallet : $wallet, $invoice->total);
+                $txn->gateway_txn_fees  = $gateway_txn_fees;
+            }
+
             $wallet->balance         = $wallet->balance - $invoice->total;
             $wallet->consumed_amount = $wallet->consumed_amount + $invoice->total;
+
             $wallet->save();
 
             $txn->updateStatus(TRANSACTION_STATUS_PAYMENT_COMPLETE);
             $invoice->markPaid();
-
-            // find out if its prepaid purchase or postpaid purchase
-            $g_wallet   = $group ? Wallet::getWallet(0, $group->id) : null;
 
             // add this txn in wallet history
             WalletHistory::addWalletHistory([
@@ -267,6 +275,25 @@ class WalletHelper
         }
 
         return $invoice->status;
+    }
+
+    public function getTxnFees($wallet, $amount_to_be_paid)
+    {
+        if(!$wallet->user_id){
+            // it is a group wallet
+            $total_balance      = UserGroup::getGroupBalance($wallet->group_id);
+        } else{
+            $total_balance      = $wallet->balance;
+        }
+        $gateway_fees_balance   = $wallet->gateway_fees_balance;
+
+        $gateway_txn_fees       = round(($gateway_fees_balance / $total_balance) * $amount_to_be_paid, 2);
+        $gateway_fees_balance   = round($gateway_fees_balance - $gateway_txn_fees, 2);
+
+        $wallet->gateway_fees_balance  = $gateway_fees_balance;
+        $wallet->save();
+        
+        return $gateway_txn_fees;
     }
 
     public function processRefund($txn, $wallet, $group_id)
