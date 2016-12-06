@@ -243,6 +243,7 @@ class Cart extends Model
     public function getPaidCartItems()
     {
         $params     = json_decode($this->params, true);
+        $discount   = isset($params["discount"]) ? Discount::find($params["discount"]) : null;
         $resources  = $params["resources"];
 
         $items      = [];
@@ -273,7 +274,9 @@ class Cart extends Model
                     }
                     $item['title']          = ucwords($resource_data->title);
                     $item['plan_type']      = $resource->plan_type == PLAN_TYPE_PURCHASE ? "Download" : "Rent";
-                    $item['subtotal']       = $subtotal;
+
+                    $item_discount          = $discount ? 0.01 * $discount->discount_percent * $subtotal : 0;
+                    $item['subtotal']       = round($subtotal - $item_discount, 2);
                 }
 
 
@@ -367,7 +370,7 @@ class Cart extends Model
                 $this->params           = json_encode($params);
                 $this->save();
 
-                Event::fire(new ResourceAllocated($txn, $resources));
+                Event::fire(new ResourceAllocated($txn, $group_id));
             }
         } catch(\Exception $e){
             // revert cart status

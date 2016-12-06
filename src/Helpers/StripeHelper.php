@@ -8,9 +8,11 @@
 
 namespace Laravel\Cashier\Helpers;
 
+use App\Events\PostpaidPaymentCompleted;
 use App\Listeners\RevenueSplitter;
 use App\vod\model\ResourceAllocated;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Event;
 use Laravel\Cashier\Cashier;
 use Laravel\Cashier\Invoice;
 use Laravel\Cashier\PaymentProcessor;
@@ -401,7 +403,7 @@ class StripeHelper
             // check if invoice has been marked paid
             if($status == INVOICE_STATUS_PAID){
                 $resource   = ResourceAllocated::allocateAnonymousAccess($resource_data);
-                RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id);
+                RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id, false);
                 $status = true;
             } else{
                 $status = false;
@@ -467,6 +469,8 @@ class StripeHelper
                 PostpaidBills::where("payment_invoice_id", $invoice->id)
                     ->update(["invoiced" => 1]);
 
+                Event::fire(new PostpaidPaymentCompleted(config("vod.active_site"), $invoice->id, $txn->amount, $txn->gateway_txn_fees));
+
                 $status = true;
             } else{
                 $status = false;
@@ -495,7 +499,9 @@ class StripeHelper
                 // delete the entries from wallet history
                 WalletHistory::where("payment_invoice_id", $invoice->id)->delete();
 
-                $invoice->delete();
+                // don't delete the postpaid invoice
+                $invoice->status(INVOICE_STATUS_NONE);
+                $invoice->save();
             }
 
             // prepare response

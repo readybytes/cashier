@@ -8,10 +8,12 @@
 
 namespace Laravel\Cashier\Helpers;
 
+use App\Events\PostpaidPaymentCompleted;
 use App\Listeners\RevenueSplitter;
 use App\vod\model\Movie;
 use App\vod\model\ResourceAllocated;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Event;
 use Laravel\Cashier\Cart;
 use Laravel\Cashier\Invoice;
 use Laravel\Cashier\PaymentProcessor;
@@ -482,7 +484,7 @@ class PayPalHelper
         // check if invoice has been marked paid
         if($status == INVOICE_STATUS_PAID){
             $resource   = ResourceAllocated::allocateAnonymousAccess($resource_data);
-            RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id);
+            RevenueSplitter::splitSharedLinkRevenue($txn, $resource->id, false);
             $status = true;
         } else{
             $status = false;
@@ -584,6 +586,8 @@ class PayPalHelper
             // update postpaid bill status
             PostpaidBills::where("payment_invoice_id", $invoice->id)
                 ->update(["invoiced" => 1]);
+
+            Event::fire(new PostpaidPaymentCompleted(config("vod.active_site"), $invoice->id, $txn->amount, $txn->gateway_txn_fees));
 
             $status = true;
         } else{

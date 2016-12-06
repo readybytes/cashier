@@ -94,7 +94,7 @@ class Transaction extends Model
         return $response;
     }
 
-    public static function markComplete($invoice, $processor_id, $gateway_txn_id, $offline_txn_notes)
+    public static function markComplete($invoice, $processor_id, $gateway_txn_id, $offline_txn_notes, $gateway_txn_fees)
     {
         try{
             $txn        = Transaction::where("invoice_id", $invoice->id)
@@ -115,13 +115,18 @@ class Transaction extends Model
                 $helper         = "Laravel\\Cashier\\Helpers\\".ucfirst($processor_type)."Helper";
                 $helper_obj     = new $helper();
 
-                list($gateway_txn_id, $gateway_txn_fees, $txn_details)  =   $helper_obj->getTransactionDetails($gateway_txn_id);
+                try{
+                    list($gateway_txn_id, $gateway_txn_fees, $txn_details)  =   $helper_obj->getTransactionDetails($gateway_txn_id);
+                } catch(\Exception $e){
+                    $txn_details        = [];
+                }
                 $txn->gateway_txn_id    = $gateway_txn_id;
-                $txn->gateway_txn_fees  = $gateway_txn_fees;
 
                 $params["txn_details"]  = $txn_details;
                 $params["message"]      = "Payment remotely accepted and marked Paid by Admin";
             }
+
+            $txn->gateway_txn_fees      = $gateway_txn_fees;
 
             if($offline_txn_notes){
                 $params["offline_txn_notes"]    = $offline_txn_notes;

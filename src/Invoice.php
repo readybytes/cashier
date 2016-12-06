@@ -10,8 +10,10 @@ namespace Laravel\Cashier;
 
 use App\Events\CreateTransaction;
 use App\Events\InvoicePaid;
+use App\Events\PostpaidPaymentCompleted;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Event;
 
 class Invoice extends Model
 {
@@ -106,13 +108,13 @@ class Invoice extends Model
         return $invoice_list;
     }
 
-    public function markPaidManually($processor_id, $gateway_txn_id, $offline_txn_notes)
+    public function markPaidManually($processor_id, $gateway_txn_id, $offline_txn_notes, $gateway_txn_fees)
     {
         // first of all, check if this invoice is associated with any transaction or not
         // if not, create the txn simultaneously
 
         try{
-            $txn    = Transaction::markComplete($this, $processor_id, $gateway_txn_id, $offline_txn_notes);
+            $txn    = Transaction::markComplete($this, $processor_id, $gateway_txn_id, $offline_txn_notes, $gateway_txn_fees);
             
             if($txn){
                 $this->status       = INVOICE_STATUS_PAID;
@@ -132,6 +134,8 @@ class Invoice extends Model
                 // update postpaid bill status
                 PostpaidBills::where("payment_invoice_id", $this->id)
                     ->update(["invoiced" => 1]);
+
+                Event::fire(new PostpaidPaymentCompleted(config("vod.active_site"), $this->id, $this->total, $txn->gateway_txn_fees));
 
                 return [
                     "status"        => "success",
