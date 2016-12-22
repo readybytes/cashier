@@ -23,6 +23,46 @@ class Transaction extends Model
         "params", "gateway_txn_fees", "message"
     ];
 
+    public static function getAllTransactionList($data, $rows)
+    {
+        $query              = Transaction::query();
+
+        $query->select('payment_transaction.id', 'payment_transaction.user_id', 'payment_transaction.invoice_id', 'payment_transaction.processor_id',
+            'payment_transaction.gateway_txn_id', 'payment_transaction.gateway_txn_fees', 'payment_transaction.amount', 'payment_transaction.currency',
+            'payment_transaction.payment_status', 'payment_transaction.message', 'payment_transaction.params', 'payment_transaction.created_at','users.email')
+            ->join('users', 'users.id', '=', 'payment_transaction.user_id');
+
+        if($data['txn_id']){
+            $query->where('payment_transaction.id', $data['txn_id']);
+        }
+        if($data['client_email']){
+            $query->where('users.email', 'LIKE', '%'. $data['client_email'] .'%');
+        }
+        if($data['invoice_id']){
+            $query->where('payment_transaction.invoice_id', $data['invoice_id']);
+        }
+        if($data['amount_from']){
+            $query->where('payment_transaction.amount','>=', $data['amount_from']);
+        }
+        if($data['amount_to']){
+            $query->where('payment_transaction.amount','<=', $data['amount_to']);
+        }
+        if($data['payment_status']){
+            $query->where('payment_transaction.payment_status', $data['payment_status']);
+        }
+        if($data['payment_method'] != null){
+            $query->where('payment_transaction.processor_id', $data['payment_method']);
+        }
+        if($data['paid_date_from']){
+            $query->where('payment_transaction.created_at','>=', $data['paid_date_from']);
+        }
+        if($data['paid_date_to']){
+            $query->where('payment_transaction.created_at','<=', $data['paid_date_to']);
+        }
+        $list             = $query->paginate($rows);
+        return $list;
+    }
+
     public static function createTransaction($invoice, $processor_id, $payment_details)
     {
         $transaction                    = new Transaction();

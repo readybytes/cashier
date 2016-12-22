@@ -89,7 +89,7 @@ class Invoice extends Model
         $this->save();
     }
 
-    public static function getInvoiceList($invoice_id = null)
+    public static function getInvoiceList($data, $rows, $invoice_id = null)
     {
         $query          = Invoice::query();
 
@@ -101,10 +101,34 @@ class Invoice extends Model
             $query->where("payment_invoice.invoice", $invoice_id);
         }
 
+        if($data['invoice_serial']){
+            $query->where('payment_invoice.invoice_serial', $data['invoice_serial']);
+        }
+        if($data['proforma_serial']){
+            $query->where('payment_invoice.proforma_serial', $data['proforma_serial']);
+        }
+        if($data['user_email']){
+            $query->where('users.email', 'LIKE', '%'. trim($data['user_email']) .'%');
+        }
+        if($data['amount_from']){
+            $query->where('payment_invoice.total','>=', $data['amount_from']);
+        }
+        if($data['amount_to']){
+            $query->where('payment_invoice.total','<=', $data['amount_to']);
+        }
+        if($data['invoice_status']){
+            $query->where('payment_invoice.status', $data['invoice_status']);
+        }
+        if($data['paid_date_from']){
+            $query->where('payment_invoice.paid_date','>=', $data['paid_date_from']);
+        }
+        if($data['paid_date_to']){
+            $query->where('payment_invoice.paid_date','<=', $data['paid_date_to']);
+        }
+
         $invoice_list   = $query->orderBy('payment_invoice.created_at', 'DESC')
             ->groupBy('payment_invoice.id')
-            ->paginate(20);
-
+            ->paginate($rows);
         return $invoice_list;
     }
 
