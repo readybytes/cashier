@@ -20,12 +20,12 @@ class PostpaidBills extends Model
     {
         $query              = PostpaidBills::query();
 
-        $query->select('postpaid_bills.id', 'postpaid_bills.group_id', 'postpaid_bills.amount', 'postpaid_bills.payment_invoice_id',
-            'postpaid_bills.discount', 'postpaid_bills.params', 'postpaid_bills.invoiced', 'postpaid_bills.created_at', 'user_group.id',
-            'user_group.group_name', 'wallet.group_id', 'wallet.user_id', 'wallet.billing_start_date', 'wallet.billing_end_date')
-            ->join('user_group', 'user_group.id', '=', 'postpaid_bills.group_id')
+        $query->join('user_group', 'user_group.id', '=', 'postpaid_bills.group_id')
             ->join('wallet', 'wallet.group_id', '=', 'postpaid_bills.group_id')
-            ->where('wallet.user_id',0);
+            ->where('wallet.user_id',0)
+            ->select('postpaid_bills.id', 'postpaid_bills.group_id', 'postpaid_bills.amount', 'postpaid_bills.payment_invoice_id',
+                'postpaid_bills.discount', 'postpaid_bills.params', 'postpaid_bills.invoiced', 'postpaid_bills.created_at',
+                'user_group.group_name', 'wallet.user_id', 'wallet.billing_start_date', 'wallet.billing_end_date');
 
         if($data['group_name']){
             $query->where('user_group.group_name', 'LIKE', '%'. $data['group_name'] .'%');
